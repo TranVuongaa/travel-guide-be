@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ContentStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  REJECTED
+  HIDDEN
+}
+
+model Province {
+  id     String  @id @default(uuid())
+  name   String  @unique
+  slug   String  @unique
+  places Place[]
+
+  @@map("provinces")
+}
+
+model Category {
+  id     String          @id @default(uuid())
+  name   String          @unique
+  slug   String          @unique
+  places PlaceCategory[]
+
+  @@map("categories")
+}
+
+model Place {
+  id          String          @id @default(uuid())
+  name        String
+  slug        String          @unique
+  description String
+  address     String?
+  latitude    Float?
+  longitude   Float?
+  provinceId  String
+  province    Province        @relation(fields: [provinceId], references: [id])
+  avgRating   Float           @default(0)
+  reviewCount Int             @default(0)
+  status      ContentStatus   @default(PUBLISHED)
+  createdById String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  categories  PlaceCategory[]
+
+  @@index([provinceId])
+  @@index([status, createdAt, id])
+  @@map("places")
+}
+
+model PlaceCategory {
+  placeId    String
+  categoryId String
+  place      Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([placeId, categoryId])
+  @@index([categoryId, placeId])
+  @@map("place_categories")
+}
