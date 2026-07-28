@@ -190,19 +190,19 @@ export class PlacesService {
               {
                 name: {
                   contains: query.search,
-                  mode: Prisma.QueryMode.insensitive,
+                  mode: 'insensitive',
                 },
               },
               {
                 description: {
                   contains: query.search,
-                  mode: Prisma.QueryMode.insensitive,
+                  mode: 'insensitive',
                 },
               },
               {
                 address: {
                   contains: query.search,
-                  mode: Prisma.QueryMode.insensitive,
+                  mode: 'insensitive',
                 },
               },
             ],
