@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    container_name: travel-guide-api
+    restart: always
+
+    env_file:
+      - .env
+
+    ports:
+      - "3000:3000"
