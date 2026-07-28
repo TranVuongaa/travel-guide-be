@@ -1,6 +1,8 @@
 import { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
-import { ContentStatus } from '@prisma/client';
+import { ContentStatus, Role } from '@prisma/client';
 import request from 'supertest';
 
 import { AppModule } from '../src/app.module';
@@ -10,6 +12,7 @@ import { PrismaService } from '../src/database/prisma.service';
 import { PlaceResponseDto } from '../src/modules/places/dto/place-response.dto';
 import { QueryPlaceDto } from '../src/modules/places/dto/query-place.dto';
 import { PlacesService } from '../src/modules/places/places.service';
+import { UsersService } from '../src/modules/users/users.service';
 
 type SupertestApp = Parameters<typeof request>[0];
 
@@ -50,6 +53,9 @@ const PLACE_ID = '11111111-1111-4111-8111-111111111111';
 const MISSING_PLACE_ID = '99999999-9999-4999-8999-999999999999';
 const PROVINCE_ID = '22222222-2222-4222-8222-222222222222';
 const CATEGORY_ID = '33333333-3333-4333-8333-333333333333';
+const EDITOR_ID = '44444444-4444-4444-8444-444444444444';
+const ADMIN_ID = '55555555-5555-4555-8555-555555555555';
+const USER_ID = '66666666-6666-4666-8666-666666666666';
 
 const place: PlaceResponseDto = {
   id: PLACE_ID,
@@ -82,12 +88,37 @@ const place: PlaceResponseDto = {
 
 describe('Places API (e2e)', () => {
   let app: INestApplication;
+  let editorToken: string;
+  let adminToken: string;
+  let userToken: string;
   const placesService = {
     findAll: jest.fn(),
     findOneOrFail: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
+    create: jest.fn().mockResolvedValue(place),
+    update: jest.fn().mockResolvedValue(place),
+    remove: jest
+      .fn()
+      .mockResolvedValue({ ...place, status: ContentStatus.HIDDEN }),
+  };
+  const usersService = {
+    findAuthUserById: jest.fn((id: string) => {
+      const rolesById: Record<string, Role> = {
+        [EDITOR_ID]: Role.EDITOR,
+        [ADMIN_ID]: Role.ADMIN,
+        [USER_ID]: Role.USER,
+      };
+      const role = rolesById[id];
+
+      return role
+        ? {
+            id,
+            email: `${role.toLowerCase()}@example.com`,
+            displayName: role,
+            role,
+            isActive: true,
+          }
+        : null;
+    }),
   };
 
   beforeAll(async () => {
@@ -99,6 +130,8 @@ describe('Places API (e2e)', () => {
         $connect: jest.fn(),
         $disconnect: jest.fn(),
       })
+      .overrideProvider(UsersService)
+      .useValue(usersService)
       .overrideProvider(PlacesService)
       .useValue(placesService)
       .compile();
@@ -106,6 +139,26 @@ describe('Places API (e2e)', () => {
     app = moduleRef.createNestApplication();
     configureApp(app, { enableSwagger: false });
     await app.init();
+
+    const jwt = app.get(JwtService);
+    const tokenOptions = {
+      secret: process.env.JWT_ACCESS_SECRET,
+      issuer: process.env.JWT_ISSUER,
+      audience: process.env.JWT_AUDIENCE,
+      expiresIn: 900,
+    };
+    editorToken = await jwt.signAsync(
+      { sub: EDITOR_ID, role: Role.EDITOR, type: 'access' },
+      tokenOptions,
+    );
+    adminToken = await jwt.signAsync(
+      { sub: ADMIN_ID, role: Role.ADMIN, type: 'access' },
+      tokenOptions,
+    );
+    userToken = await jwt.signAsync(
+      { sub: USER_ID, role: Role.USER, type: 'access' },
+      tokenOptions,
+    );
   });
 
   beforeEach(() => {
@@ -127,6 +180,25 @@ describe('Places API (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  it('should document public reads and protected Place mutations in OpenAPI', () => {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder().setTitle('Test API').addBearerAuth().build(),
+    );
+    const collection = document.paths['/api/v1/places'];
+    const detail = document.paths['/api/v1/places/{id}'];
+
+    expect(collection?.get?.security).toBeUndefined();
+    expect(detail?.get?.security).toBeUndefined();
+    expect(collection?.post?.security).toEqual([{ bearer: [] }]);
+    expect(collection?.post?.responses['401']).toBeDefined();
+    expect(collection?.post?.responses['403']).toBeDefined();
+    expect(detail?.patch?.responses['401']).toBeDefined();
+    expect(detail?.patch?.responses['403']).toBeDefined();
+    expect(detail?.delete?.responses['401']).toBeDefined();
+    expect(detail?.delete?.responses['403']).toBeDefined();
   });
 
   it('should search and paginate published destinations', async () => {
@@ -195,21 +267,103 @@ describe('Places API (e2e)', () => {
     expect(missingBody.error.code).toBe('PLACE_NOT_FOUND');
   });
 
-  it('should require a valid access token for write routes', async () => {
-    const response = await request(
-      app.getHttpServer() as unknown as SupertestApp,
-    )
-      .post('/api/v1/places')
-      .send({
-        name: 'Ha Long Bay',
-        description: 'Description',
-        provinceId: PROVINCE_ID,
-        categoryIds: [CATEGORY_ID],
-      })
-      .expect(401);
-    const body = response.body as unknown as ErrorResponseBody;
+  it('should require a valid access token for every Place mutation', async () => {
+    const server = app.getHttpServer() as unknown as SupertestApp;
+    const requests = [
+      () => request(server).post('/api/v1/places'),
+      () => request(server).patch(`/api/v1/places/${PLACE_ID}`),
+      () => request(server).delete(`/api/v1/places/${PLACE_ID}`),
+    ];
 
-    expect(body.error.code).toBe('INVALID_ACCESS_TOKEN');
+    for (const makeRequest of requests) {
+      const response = await makeRequest().expect(401);
+      expect((response.body as ErrorResponseBody).error.code).toBe(
+        'INVALID_ACCESS_TOKEN',
+      );
+    }
+
     expect(placesService.create).not.toHaveBeenCalled();
+    expect(placesService.update).not.toHaveBeenCalled();
+    expect(placesService.remove).not.toHaveBeenCalled();
+  });
+
+  it('should reject a USER role from every Place mutation', async () => {
+    const server = app.getHttpServer() as unknown as SupertestApp;
+    const requests = [
+      () =>
+        request(server)
+          .post('/api/v1/places')
+          .set('authorization', `Bearer ${userToken}`),
+      () =>
+        request(server)
+          .patch(`/api/v1/places/${PLACE_ID}`)
+          .set('authorization', `Bearer ${userToken}`),
+      () =>
+        request(server)
+          .delete(`/api/v1/places/${PLACE_ID}`)
+          .set('authorization', `Bearer ${userToken}`),
+    ];
+
+    for (const makeRequest of requests) {
+      const response = await makeRequest().expect(403);
+      expect((response.body as ErrorResponseBody).error.code).toBe('FORBIDDEN');
+    }
+
+    expect(placesService.create).not.toHaveBeenCalled();
+    expect(placesService.update).not.toHaveBeenCalled();
+    expect(placesService.remove).not.toHaveBeenCalled();
+  });
+
+  it('should allow EDITOR create/update and reserve Place deletion for ADMIN', async () => {
+    const server = app.getHttpServer() as unknown as SupertestApp;
+    const createDto = {
+      name: 'Ha Long Bay',
+      description: 'Description',
+      provinceId: PROVINCE_ID,
+      categoryIds: [CATEGORY_ID],
+    };
+
+    await request(server)
+      .post('/api/v1/places')
+      .set('authorization', `Bearer ${editorToken}`)
+      .send(createDto)
+      .expect(201);
+    await request(server)
+      .patch(`/api/v1/places/${PLACE_ID}`)
+      .set('authorization', `Bearer ${editorToken}`)
+      .send({ description: 'Editor update' })
+      .expect(200);
+    await request(server)
+      .delete(`/api/v1/places/${PLACE_ID}`)
+      .set('authorization', `Bearer ${editorToken}`)
+      .expect(403);
+
+    await request(server)
+      .post('/api/v1/places')
+      .set('authorization', `Bearer ${adminToken}`)
+      .send(createDto)
+      .expect(201);
+    await request(server)
+      .patch(`/api/v1/places/${PLACE_ID}`)
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({ description: 'Administrator update' })
+      .expect(200);
+    await request(server)
+      .delete(`/api/v1/places/${PLACE_ID}`)
+      .set('authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    expect(placesService.create).toHaveBeenNthCalledWith(
+      1,
+      EDITOR_ID,
+      createDto,
+    );
+    expect(placesService.create).toHaveBeenNthCalledWith(
+      2,
+      ADMIN_ID,
+      createDto,
+    );
+    expect(placesService.update).toHaveBeenCalledTimes(2);
+    expect(placesService.remove).toHaveBeenCalledWith(PLACE_ID);
   });
 });

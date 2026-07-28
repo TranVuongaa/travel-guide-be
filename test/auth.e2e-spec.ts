@@ -421,6 +421,12 @@ describe('Auth and Users API (e2e)', () => {
     );
   });
 
+  it('should keep the current-user profile private', async () => {
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .get('/api/v1/users/me')
+      .expect(401);
+  });
+
   it('should register and read the authenticated profile', async () => {
     const registerResponse = await request(
       app.getHttpServer() as unknown as SupertestApp,

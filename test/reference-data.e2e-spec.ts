@@ -255,29 +255,82 @@ describe('Province and Category API (e2e)', () => {
     );
   });
 
-  it('should reject unauthenticated and non-admin writes', async () => {
-    await request(app.getHttpServer() as unknown as SupertestApp)
-      .post('/api/v1/provinces')
-      .send({ name: 'Lào Cai' })
-      .expect(401);
-    const forbidden = await request(
-      app.getHttpServer() as unknown as SupertestApp,
-    )
-      .post('/api/v1/categories')
-      .set('authorization', `Bearer ${userToken}`)
-      .send({ name: 'Sinh thái' })
-      .expect(403);
+  it('should reject every unauthenticated and non-admin reference-data mutation', async () => {
+    const server = app.getHttpServer() as unknown as SupertestApp;
+    const unauthenticatedRequests = [
+      () => request(server).post('/api/v1/provinces'),
+      () => request(server).patch(`/api/v1/provinces/${PROVINCE_ID}`),
+      () => request(server).delete(`/api/v1/provinces/${PROVINCE_ID}`),
+      () => request(server).post('/api/v1/categories'),
+      () => request(server).patch(`/api/v1/categories/${CATEGORY_ID}`),
+      () => request(server).delete(`/api/v1/categories/${CATEGORY_ID}`),
+    ];
 
-    expect((forbidden.body as ErrorResponseBody).error.code).toBe('FORBIDDEN');
+    for (const makeRequest of unauthenticatedRequests) {
+      await makeRequest().expect(401);
+    }
+
+    const nonAdminRequests = [
+      () =>
+        request(server)
+          .post('/api/v1/provinces')
+          .set('authorization', `Bearer ${userToken}`),
+      () =>
+        request(server)
+          .patch(`/api/v1/provinces/${PROVINCE_ID}`)
+          .set('authorization', `Bearer ${userToken}`),
+      () =>
+        request(server)
+          .delete(`/api/v1/provinces/${PROVINCE_ID}`)
+          .set('authorization', `Bearer ${userToken}`),
+      () =>
+        request(server)
+          .post('/api/v1/categories')
+          .set('authorization', `Bearer ${userToken}`),
+      () =>
+        request(server)
+          .patch(`/api/v1/categories/${CATEGORY_ID}`)
+          .set('authorization', `Bearer ${userToken}`),
+      () =>
+        request(server)
+          .delete(`/api/v1/categories/${CATEGORY_ID}`)
+          .set('authorization', `Bearer ${userToken}`),
+    ];
+
+    for (const makeRequest of nonAdminRequests) {
+      const forbidden = await makeRequest().expect(403);
+      expect((forbidden.body as ErrorResponseBody).error.code).toBe(
+        'FORBIDDEN',
+      );
+    }
+
     expect(provincesService.create).not.toHaveBeenCalled();
+    expect(provincesService.update).not.toHaveBeenCalled();
+    expect(provincesService.remove).not.toHaveBeenCalled();
     expect(categoriesService.create).not.toHaveBeenCalled();
+    expect(categoriesService.update).not.toHaveBeenCalled();
+    expect(categoriesService.remove).not.toHaveBeenCalled();
   });
 
-  it('should let an admin create, update, and delete reference data', async () => {
+  it('should let an admin perform every reference-data mutation', async () => {
     await request(app.getHttpServer() as unknown as SupertestApp)
       .post('/api/v1/provinces')
       .set('authorization', `Bearer ${adminToken}`)
       .send({ name: '  Lào Cai  ' })
+      .expect(201);
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .patch(`/api/v1/provinces/${PROVINCE_ID}`)
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Hạ Long' })
+      .expect(200);
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .delete(`/api/v1/provinces/${PROVINCE_ID}`)
+      .set('authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .post('/api/v1/categories')
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Sinh thái' })
       .expect(201);
     await request(app.getHttpServer() as unknown as SupertestApp)
       .patch(`/api/v1/categories/${CATEGORY_ID}`)
@@ -290,6 +343,13 @@ describe('Province and Category API (e2e)', () => {
       .expect(200);
 
     expect(provincesService.create).toHaveBeenCalledWith({ name: 'Lào Cai' });
+    expect(provincesService.update).toHaveBeenCalledWith(PROVINCE_ID, {
+      name: 'Hạ Long',
+    });
+    expect(provincesService.remove).toHaveBeenCalledWith(PROVINCE_ID);
+    expect(categoriesService.create).toHaveBeenCalledWith({
+      name: 'Sinh thái',
+    });
     expect(categoriesService.update).toHaveBeenCalledWith(CATEGORY_ID, {
       name: 'Thiên nhiên',
     });

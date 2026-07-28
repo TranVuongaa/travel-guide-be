@@ -324,16 +324,50 @@ describe('Content and engagement API (e2e)', () => {
     );
   });
 
-  it('should require authentication and pass the current user to post creation', async () => {
-    await request(app.getHttpServer() as unknown as SupertestApp)
-      .post('/api/v1/posts')
-      .send({
-        title: 'Hue guide',
-        content: 'A guide to Hue.',
-        publicationIntent: 'SUBMIT',
-      })
-      .expect(401);
+  it('should keep account-specific content reads protected', async () => {
+    const server = app.getHttpServer() as unknown as SupertestApp;
 
+    await request(server).get('/api/v1/posts/mine').expect(401);
+    await request(server).get('/api/v1/reviews/mine').expect(401);
+
+    expect(postsService.findMine).not.toHaveBeenCalled();
+    expect(reviewsService.findMine).not.toHaveBeenCalled();
+  });
+
+  it('should require authentication for every content mutation', async () => {
+    const server = app.getHttpServer() as unknown as SupertestApp;
+    const requests = [
+      () => request(server).post('/api/v1/posts'),
+      () => request(server).patch(`/api/v1/posts/${POST_ID}`),
+      () => request(server).delete(`/api/v1/posts/${POST_ID}`),
+      () => request(server).post(`/api/v1/places/${PLACE_ID}/reviews`),
+      () => request(server).patch(`/api/v1/reviews/${REVIEW_ID}`),
+      () => request(server).delete(`/api/v1/reviews/${REVIEW_ID}`),
+      () => request(server).post('/api/v1/comments'),
+      () => request(server).patch(`/api/v1/comments/${COMMENT_ID}`),
+      () => request(server).delete(`/api/v1/comments/${COMMENT_ID}`),
+      () => request(server).post('/api/v1/reactions'),
+      () => request(server).delete('/api/v1/reactions'),
+    ];
+
+    for (const makeRequest of requests) {
+      await makeRequest().expect(401);
+    }
+
+    expect(postsService.create).not.toHaveBeenCalled();
+    expect(postsService.update).not.toHaveBeenCalled();
+    expect(postsService.remove).not.toHaveBeenCalled();
+    expect(reviewsService.create).not.toHaveBeenCalled();
+    expect(reviewsService.update).not.toHaveBeenCalled();
+    expect(reviewsService.remove).not.toHaveBeenCalled();
+    expect(commentsService.create).not.toHaveBeenCalled();
+    expect(commentsService.update).not.toHaveBeenCalled();
+    expect(commentsService.remove).not.toHaveBeenCalled();
+    expect(reactionsService.upsert).not.toHaveBeenCalled();
+    expect(reactionsService.remove).not.toHaveBeenCalled();
+  });
+
+  it('should pass the current user to authenticated post creation', async () => {
     await request(app.getHttpServer() as unknown as SupertestApp)
       .post('/api/v1/posts')
       .set('authorization', `Bearer ${userToken}`)

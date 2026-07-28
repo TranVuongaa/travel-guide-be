@@ -12,6 +12,7 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -62,8 +63,9 @@ export class PlacesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a destination' })
   @ApiCreatedResponse({ type: PlaceSuccessResponseDto })
-  @ApiUnauthorizedResponse({
-    description: 'Requires the future Auth module and an editor/admin user',
+  @ApiUnauthorizedResponse({ description: 'Authentication is required' })
+  @ApiForbiddenResponse({
+    description: 'Editor or administrator role is required',
   })
   create(@CurrentUser() user: AuthUser, @Body() dto: CreatePlaceDto) {
     return this.placesService.create(user.id, dto);
@@ -75,8 +77,9 @@ export class PlacesController {
   @ApiOperation({ summary: 'Update a destination' })
   @ApiOkResponse({ type: PlaceSuccessResponseDto })
   @ApiNotFoundResponse({ description: 'Destination not found' })
-  @ApiUnauthorizedResponse({
-    description: 'Requires the future Auth module and an editor/admin user',
+  @ApiUnauthorizedResponse({ description: 'Authentication is required' })
+  @ApiForbiddenResponse({
+    description: 'Editor or administrator role is required',
   })
   update(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -91,9 +94,8 @@ export class PlacesController {
   @ApiOperation({ summary: 'Soft-remove a destination' })
   @ApiOkResponse({ type: PlaceSuccessResponseDto })
   @ApiNotFoundResponse({ description: 'Destination not found' })
-  @ApiUnauthorizedResponse({
-    description: 'Requires the future Auth module and an admin user',
-  })
+  @ApiUnauthorizedResponse({ description: 'Authentication is required' })
+  @ApiForbiddenResponse({ description: 'Administrator role is required' })
   remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
     return this.placesService.remove(id);
   }
