@@ -26,6 +26,30 @@ enum OAuthProvider {
   APPLE
 }
 
+enum PostSource {
+  SYSTEM
+  USER
+}
+
+enum CommentTargetType {
+  POST
+  REVIEW
+}
+
+enum ReactionTargetType {
+  POST
+  REVIEW
+  COMMENT
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  WOW
+  SAD
+  ANGRY
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -39,6 +63,10 @@ model User {
   refreshTokens RefreshToken[]
   oauthAccounts OAuthAccount[]
   createdPlaces Place[]
+  posts         Post[]
+  reviews       Review[]
+  comments      Comment[]
+  reactions     Reaction[]
 
   @@index([role, isActive])
   @@index([createdAt, id])
@@ -111,6 +139,8 @@ model Place {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   categories  PlaceCategory[]
+  posts       Post[]
+  reviews     Review[]
 
   @@index([provinceId])
   @@index([status, createdAt, id])
@@ -126,4 +156,79 @@ model PlaceCategory {
   @@id([placeId, categoryId])
   @@index([categoryId, placeId])
   @@map("place_categories")
+}
+
+model Post {
+  id        String        @id @default(uuid())
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  placeId   String?
+  place     Place?        @relation(fields: [placeId], references: [id], onDelete: Restrict)
+  title     String
+  content   String
+  source    PostSource    @default(USER)
+  status    ContentStatus @default(PENDING)
+  deletedAt DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([status, deletedAt, createdAt, id])
+  @@index([authorId, deletedAt, createdAt, id])
+  @@index([placeId, status, deletedAt, createdAt, id])
+  @@index([source, status, createdAt, id])
+  @@map("posts")
+}
+
+model Review {
+  id        String        @id @default(uuid())
+  placeId   String
+  place     Place         @relation(fields: [placeId], references: [id], onDelete: Restrict)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  rating    Int
+  content   String?
+  status    ContentStatus @default(PENDING)
+  deletedAt DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([placeId, authorId])
+  @@index([placeId, status, deletedAt, createdAt, id])
+  @@index([authorId, deletedAt, createdAt, id])
+  @@map("reviews")
+}
+
+model Comment {
+  id         String            @id @default(uuid())
+  authorId   String
+  author     User              @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  targetType CommentTargetType
+  targetId   String
+  parentId   String?
+  parent     Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Restrict)
+  replies    Comment[]         @relation("CommentReplies")
+  content    String
+  status     ContentStatus     @default(PENDING)
+  deletedAt  DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([targetType, targetId, parentId, status, createdAt, id])
+  @@index([authorId, deletedAt, createdAt, id])
+  @@map("comments")
+}
+
+model Reaction {
+  id         String             @id @default(uuid())
+  userId     String
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType ReactionTargetType
+  targetId   String
+  type       ReactionType
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId, type])
+  @@map("reactions")
 }

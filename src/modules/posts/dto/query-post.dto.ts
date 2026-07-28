@@ -1,0 +1,45 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ContentStatus, PostSource } from '@prisma/client';
+import { Transform } from 'class-transformer';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
+
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+
+export class QueryPostDto extends PaginationDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID('4')
+  placeId?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID('4')
+  authorId?: string;
+
+  @ApiPropertyOptional({ enum: PostSource })
+  @IsOptional()
+  @IsEnum(PostSource)
+  source?: PostSource;
+
+  @ApiPropertyOptional({ maxLength: 200 })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MaxLength(200)
+  search?: string;
+}
+
+export class QueryMyPostDto extends PaginationDto {
+  @ApiPropertyOptional({ enum: ContentStatus })
+  @IsOptional()
+  @IsEnum(ContentStatus)
+  status?: ContentStatus;
+}

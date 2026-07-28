@@ -1,5 +1,5 @@
-CRUD/seed dữ liệu Province, Category.
-Posts, Reviews, Comments, Reactions.
+<!-- CRUD/seed dữ liệu Province, Category. -->
+<!-- Posts, Reviews, Comments, Reactions. -->
 Media/S3, Notifications, Moderation.
 Redis/BullMQ, caching, rate limiting và health check.
 API ghi của Places hiện vẫn trả 401 vì chưa có Auth, dù logic service đã tồn tại.

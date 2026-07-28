@@ -10,6 +10,14 @@ function parseInteger(value: string | undefined, fallback: number): number {
   return Number.isNaN(parsed) ? fallback : parsed;
 }
 
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  return value.toLowerCase() === 'true';
+}
+
 export default () => ({
   port: parseInteger(process.env.PORT, 3000),
   corsOrigins: parseCsv(process.env.CORS_ORIGINS),
@@ -41,5 +49,15 @@ export default () => ({
       timeCost: parseInteger(process.env.ARGON2_TIME_COST, 2),
       parallelism: parseInteger(process.env.ARGON2_PARALLELISM, 1),
     },
+  },
+  content: {
+    requireModeration: parseBoolean(process.env.REQUIRE_MODERATION, true),
+    throttleTtlMs: parseInteger(process.env.CONTENT_THROTTLE_TTL_MS, 60000),
+    throttleLimit: parseInteger(process.env.CONTENT_THROTTLE_LIMIT, 20),
+  },
+  redis: {
+    host: process.env.REDIS_HOST,
+    port: parseInteger(process.env.REDIS_PORT, 6379),
+    password: process.env.REDIS_PASSWORD,
   },
 });
