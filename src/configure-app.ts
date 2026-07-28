@@ -17,7 +17,15 @@ export function configureApp(
 ): void {
   const config = app.get(ConfigService);
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          upgradeInsecureRequests: null, // tắt để không ép HTTPS khi chưa có SSL
+        },
+      },
+    }),
+  );
   app.enableCors({
     origin: config.getOrThrow<string[]>('corsOrigins'),
     credentials: false,
