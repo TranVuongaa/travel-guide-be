@@ -18,6 +18,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -57,7 +58,7 @@ export class PlacesController {
   }
 
   @Post()
-  @Roles('EDITOR', 'ADMIN')
+  @Roles(Role.EDITOR, Role.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a destination' })
   @ApiCreatedResponse({ type: PlaceSuccessResponseDto })
@@ -69,7 +70,7 @@ export class PlacesController {
   }
 
   @Patch(':id')
-  @Roles('EDITOR', 'ADMIN')
+  @Roles(Role.EDITOR, Role.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a destination' })
   @ApiOkResponse({ type: PlaceSuccessResponseDto })
@@ -85,7 +86,7 @@ export class PlacesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles(Role.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Soft-remove a destination' })
   @ApiOkResponse({ type: PlaceSuccessResponseDto })

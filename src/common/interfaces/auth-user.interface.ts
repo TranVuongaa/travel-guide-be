@@ -1,4 +1,12 @@
+import { Role } from '@prisma/client';
+
 export interface AuthUser {
   id: string;
-  role: string;
+  email: string;
+  displayName: string;
+  role: Role;
+}
+
+export interface RefreshAuthUser extends AuthUser {
+  refreshTokenId: string;
 }

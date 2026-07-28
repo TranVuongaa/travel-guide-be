@@ -86,7 +86,9 @@ export class PlacesService {
           address: dto.address,
           latitude: dto.latitude,
           longitude: dto.longitude,
-          createdById: userId,
+          createdBy: {
+            connect: { id: userId },
+          },
           province: {
             connect: { id: dto.provinceId },
           },

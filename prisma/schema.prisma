@@ -15,6 +15,66 @@ enum ContentStatus {
   HIDDEN
 }
 
+enum Role {
+  USER
+  EDITOR
+  ADMIN
+}
+
+enum OAuthProvider {
+  GOOGLE
+  APPLE
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String?
+  displayName   String
+  avatarUrl     String?
+  role          Role           @default(USER)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+  oauthAccounts OAuthAccount[]
+  createdPlaces Place[]
+
+  @@index([role, isActive])
+  @@index([createdAt, id])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model OAuthAccount {
+  id                String        @id @default(uuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          OAuthProvider
+  providerAccountId String
+  providerEmail     String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@unique([userId, provider])
+  @@index([providerEmail])
+  @@map("oauth_accounts")
+}
+
 model Province {
   id     String  @id @default(uuid())
   name   String  @unique
@@ -47,6 +107,7 @@ model Place {
   reviewCount Int             @default(0)
   status      ContentStatus   @default(PUBLISHED)
   createdById String
+  createdBy   User            @relation(fields: [createdById], references: [id])
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   categories  PlaceCategory[]

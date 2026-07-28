@@ -195,7 +195,7 @@ describe('Places API (e2e)', () => {
     expect(missingBody.error.code).toBe('PLACE_NOT_FOUND');
   });
 
-  it('should fail closed for write routes until Auth is implemented', async () => {
+  it('should require a valid access token for write routes', async () => {
     const response = await request(
       app.getHttpServer() as unknown as SupertestApp,
     )
@@ -209,7 +209,7 @@ describe('Places API (e2e)', () => {
       .expect(401);
     const body = response.body as unknown as ErrorResponseBody;
 
-    expect(body.error.code).toBe('UNAUTHENTICATED');
+    expect(body.error.code).toBe('INVALID_ACCESS_TOKEN');
     expect(placesService.create).not.toHaveBeenCalled();
   });
 });

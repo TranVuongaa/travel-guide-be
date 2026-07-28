@@ -272,8 +272,8 @@ describe('PlacesService', () => {
     };
     expect(createArgs.data).toEqual(
       expect.objectContaining({
-        createdById: USER_ID,
         slug: 'ha-long-bay-2',
+        createdBy: { connect: { id: USER_ID } },
         province: { connect: { id: PROVINCE_ID } },
         categories: { create: [{ categoryId: CATEGORY_ID }] },
       }),

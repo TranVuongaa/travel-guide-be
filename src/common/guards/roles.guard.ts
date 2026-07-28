@@ -1,7 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Role } from '@prisma/client';
 
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { ForbiddenDomainException } from '../exceptions/identity.exceptions';
 import { AuthUser } from '../interfaces/auth-user.interface';
 
 @Injectable()
@@ -9,7 +11,7 @@ export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const roles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
+    const roles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
@@ -19,6 +21,10 @@ export class RolesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<{ user?: AuthUser }>();
-    return request.user ? roles.includes(request.user.role) : false;
+    if (!request.user || !roles.includes(request.user.role)) {
+      throw new ForbiddenDomainException();
+    }
+
+    return true;
   }
 }
