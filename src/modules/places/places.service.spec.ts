@@ -154,7 +154,7 @@ describe('PlacesService', () => {
     const query = Object.assign(new QueryPlaceDto(), {
       page: 2,
       limit: 10,
-      search: 'bay',
+      search: 'VỊNH HẠ LONG',
       provinceId: PROVINCE_ID,
       categoryId: CATEGORY_ID,
       sortBy: PlaceSortBy.NAME,
@@ -183,26 +183,7 @@ describe('PlacesService', () => {
       status: ContentStatus.PUBLISHED,
       provinceId: PROVINCE_ID,
       categories: { some: { categoryId: CATEGORY_ID } },
-      OR: [
-        {
-          name: {
-            contains: 'bay',
-            mode: 'insensitive',
-          },
-        },
-        {
-          description: {
-            contains: 'bay',
-            mode: 'insensitive',
-          },
-        },
-        {
-          address: {
-            contains: 'bay',
-            mode: 'insensitive',
-          },
-        },
-      ],
+      searchText: { contains: 'vinh ha long' },
     });
   });
 

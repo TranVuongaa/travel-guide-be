@@ -27,7 +27,12 @@ export class QueryPostDto extends PaginationDto {
   @IsEnum(PostSource)
   source?: PostSource;
 
-  @ApiPropertyOptional({ maxLength: 200 })
+  @ApiPropertyOptional({
+    description:
+      'Case-insensitive and Vietnamese-accent-insensitive title/content search',
+    example: 'co do hue',
+    maxLength: 200,
+  })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,

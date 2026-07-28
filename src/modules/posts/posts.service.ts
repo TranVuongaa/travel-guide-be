@@ -18,6 +18,7 @@ import {
   ContentEngagementService,
   TargetEngagement,
 } from '../../common/services/content-engagement.service';
+import { normalizeSearchText } from '../../common/utils/search-text.util';
 import { PrismaService } from '../../database/prisma.service';
 import { CreatePostDto, PublicationIntent } from './dto/create-post.dto';
 import { PostResponseDto } from './dto/post-response.dto';
@@ -39,28 +40,18 @@ export class PostsService {
   async findAll(
     query: QueryPostDto,
   ): Promise<PaginatedResult<PostResponseDto>> {
+    const searchText = query.search ? normalizeSearchText(query.search) : '';
     const where: Prisma.PostWhereInput = {
       status: ContentStatus.PUBLISHED,
       deletedAt: null,
       ...(query.placeId ? { placeId: query.placeId } : {}),
       ...(query.authorId ? { authorId: query.authorId } : {}),
       ...(query.source ? { source: query.source } : {}),
-      ...(query.search
+      ...(searchText
         ? {
-            OR: [
-              {
-                title: {
-                  contains: query.search,
-                  mode: Prisma.QueryMode.insensitive,
-                },
-              },
-              {
-                content: {
-                  contains: query.search,
-                  mode: Prisma.QueryMode.insensitive,
-                },
-              },
-            ],
+            searchText: {
+              contains: searchText,
+            },
           }
         : {}),
     };

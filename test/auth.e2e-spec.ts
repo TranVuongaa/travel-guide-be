@@ -580,9 +580,16 @@ describe('Auth and Users API (e2e)', () => {
     local.role = Role.ADMIN;
 
     await request(app.getHttpServer() as unknown as SupertestApp)
-      .get('/api/v1/users')
+      .get('/api/v1/users?search=NGUYEN%20VAN%20AN')
       .set('authorization', `Bearer ${localAccessToken}`)
       .expect(200);
+    expect(prisma.user.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          searchText: { contains: 'nguyen van an' },
+        },
+      }),
+    );
 
     await request(app.getHttpServer() as unknown as SupertestApp)
       .patch(`/api/v1/users/${googleUserId}/status`)

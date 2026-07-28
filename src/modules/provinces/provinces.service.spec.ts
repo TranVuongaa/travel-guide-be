@@ -68,7 +68,7 @@ describe('ProvincesService', () => {
     const query = Object.assign(new QueryProvinceDto(), {
       page: 2,
       limit: 10,
-      search: 'Quảng',
+      search: 'QUẢNG NINH',
       sortOrder: SortOrder.DESC,
     });
 
@@ -81,10 +81,7 @@ describe('ProvincesService', () => {
     });
     expect(prisma.province.findMany).toHaveBeenCalledWith({
       where: {
-        OR: [
-          { name: { contains: 'Quảng', mode: 'insensitive' } },
-          { slug: { contains: 'Quảng', mode: 'insensitive' } },
-        ],
+        searchText: { contains: 'quang ninh' },
       },
       skip: 10,
       take: 10,
@@ -97,6 +94,22 @@ describe('ProvincesService', () => {
     prisma.province.findUnique.mockResolvedValue(province);
 
     await expect(service.findOneOrFail(PROVINCE_ID)).resolves.toEqual(province);
+  });
+
+  it('should ignore a search term that normalizes to an empty string', async () => {
+    prisma.province.findMany.mockResolvedValue([]);
+    prisma.province.count.mockResolvedValue(0);
+
+    await service.findAll(
+      Object.assign(new QueryProvinceDto(), {
+        search: '---',
+      }),
+    );
+
+    expect(prisma.province.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {} }),
+    );
+    expect(prisma.province.count).toHaveBeenCalledWith({ where: {} });
   });
 
   it('should throw when a province does not exist', async () => {

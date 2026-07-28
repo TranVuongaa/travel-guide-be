@@ -4,6 +4,7 @@ The syntax below is close to a Prisma schema so the agent can use it almost dire
 TypeORM entities if `01-architecture.md`'s ORM decision changes.
 
 ## 1. Identity
+
 ```prisma
 enum Role {
   USER
@@ -46,6 +47,7 @@ model RefreshToken {
 ```
 
 ## 2. Place
+
 ```prisma
 model Province {
   id    String  @id @default(uuid())
@@ -141,6 +143,7 @@ remote, system-curated image metadata; user-uploaded Post/Review media remains t
 `Media` domain described in section 7.
 
 ## 3. Content (Post)
+
 ```prisma
 enum ContentStatus {
   DRAFT
@@ -179,6 +182,7 @@ model Post {
 ```
 
 ## 4. Review
+
 ```prisma
 model Review {
   id        String        @id @default(uuid())
@@ -202,6 +206,7 @@ model Review {
 ```
 
 ## 5. Comment (nested, polymorphic target)
+
 ```prisma
 enum CommentTargetType {
   POST
@@ -230,12 +235,14 @@ model Comment {
   @@map("comments")
 }
 ```
+
 > Note: Prisma doesn't support true polymorphic FKs — the `postRef`/`reviewRef` relation fields
 > above are only illustrative of intent; actual implementation should NOT hard-FK `targetId` but
 > instead enforce integrity at the Service layer (check the target exists before creating a
 > record). Call this out explicitly in the corresponding prompt file when implementing.
 
 ## 6. Reaction (polymorphic)
+
 ```prisma
 enum ReactionTargetType {
   POST
@@ -271,6 +278,7 @@ model Reaction {
 ```
 
 ## 7. Media
+
 ```prisma
 enum MediaOwnerType {
   POST
@@ -294,6 +302,7 @@ model Media {
 ```
 
 ## 8. Report / Moderation
+
 ```prisma
 enum ReportTargetType {
   POST
@@ -332,6 +341,7 @@ model Report {
 ```
 
 ## 9. General Design Notes
+
 - All `id` fields use UUID (v4), never auto-increment ints, to avoid leaking creation-order
   information.
 - `avgRating`/`reviewCount` on `Place` are denormalized columns, updated via an async job whenever
@@ -340,3 +350,30 @@ model Report {
 - Every table has `createdAt`; tables that support editing also have `updatedAt`.
 - Soft delete: consider adding `deletedAt` to `Post`, `Review`, `Comment` instead of hard-deleting
   — decide this explicitly in each module's prompt file at implementation time.
+
+### 9.1 Normalized substring search
+
+The existing `search` query parameters for Users, Provinces, Categories, Places, and Posts use an
+internal stored generated column named `search_text`:
+
+| Table        | Source columns included in `search_text` |
+| ------------ | ---------------------------------------- |
+| `users`      | `email`, `displayName`                   |
+| `provinces`  | `name`, `slug`                           |
+| `categories` | `name`, `slug`                           |
+| `places`     | `name`, `description`, `address`         |
+| `posts`      | `title`, `content`                       |
+
+- Migration `20260728030000_vietnamese_accent_insensitive_search` enables PostgreSQL `unaccent`
+  and `pg_trgm`, and defines the schema-qualified immutable `normalize_search_text(text)` helper.
+- Normalization lowercases text, removes Vietnamese accents, maps `đ`/`Đ` to `d`/`D`, converts
+  punctuation/separators to single spaces, and trims the result.
+- Each `search_text` column is `GENERATED ALWAYS ... STORED`, so existing rows are backfilled by
+  the migration and later Prisma, OAuth, registration, and seed writes stay synchronized without
+  application-side write hooks.
+- Each column has a GIN `gin_trgm_ops` index for indexed `%term%`/substring matching.
+- Prisma maps generated columns with `@default(dbgenerated())` so create inputs omit them. The
+  custom SQL migration remains authoritative for the generated expression because Prisma Schema
+  Language does not model PostgreSQL generated-column expressions directly.
+- `PrismaService` globally omits these internal fields from result payloads; API response schemas
+  remain unchanged.

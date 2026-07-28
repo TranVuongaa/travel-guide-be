@@ -17,6 +17,8 @@ export const postWithRelationsInclude = {
   },
 } satisfies Prisma.PostInclude;
 
-export type PostWithRelations = Prisma.PostGetPayload<{
+type PostWithInternalSearch = Prisma.PostGetPayload<{
   include: typeof postWithRelationsInclude;
 }>;
+
+export type PostWithRelations = Omit<PostWithInternalSearch, 'searchText'>;

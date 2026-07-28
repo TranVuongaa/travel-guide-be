@@ -19,7 +19,12 @@ export enum UserSortBy {
 }
 
 export class QueryUserDto extends PaginationDto {
-  @ApiPropertyOptional({ maxLength: 200 })
+  @ApiPropertyOptional({
+    description:
+      'Case-insensitive and Vietnamese-accent-insensitive email/display-name search',
+    example: 'nguyen van an',
+    maxLength: 200,
+  })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,

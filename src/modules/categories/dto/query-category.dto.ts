@@ -5,7 +5,12 @@ import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { PaginationDto, SortOrder } from '../../../common/dto/pagination.dto';
 
 export class QueryCategoryDto extends PaginationDto {
-  @ApiPropertyOptional({ maxLength: 100 })
+  @ApiPropertyOptional({
+    description:
+      'Case-insensitive and Vietnamese-accent-insensitive name/slug search',
+    example: 'bien dao',
+    maxLength: 100,
+  })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,

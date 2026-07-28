@@ -312,7 +312,7 @@ describe('Content and engagement API (e2e)', () => {
     const response = await request(
       app.getHttpServer() as unknown as SupertestApp,
     )
-      .get(`/api/v1/posts?placeId=${PLACE_ID}&search=%20Hue%20`)
+      .get(`/api/v1/posts?placeId=${PLACE_ID}&search=%20CO%20DO%20HUE%20`)
       .expect(200);
 
     const body = response.body as unknown as ListBody;
@@ -320,7 +320,7 @@ describe('Content and engagement API (e2e)', () => {
     expect(body.data.items[0].id).toBe(POST_ID);
     expect(typeof body.meta.requestId).toBe('string');
     expect(postsService.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ placeId: PLACE_ID, search: 'Hue' }),
+      expect.objectContaining({ placeId: PLACE_ID, search: 'CO DO HUE' }),
     );
   });
 

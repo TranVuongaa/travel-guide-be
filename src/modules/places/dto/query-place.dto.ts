@@ -18,7 +18,12 @@ export enum PlaceSortBy {
 }
 
 export class QueryPlaceDto extends PaginationDto {
-  @ApiPropertyOptional({ maxLength: 200 })
+  @ApiPropertyOptional({
+    description:
+      'Case-insensitive and Vietnamese-accent-insensitive name, description, or address search',
+    example: 'da nang',
+    maxLength: 200,
+  })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,

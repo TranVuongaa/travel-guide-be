@@ -67,7 +67,7 @@ describe('CategoriesService', () => {
     const query = Object.assign(new QueryCategoryDto(), {
       page: 1,
       limit: 5,
-      search: 'biển',
+      search: 'BIỂN ĐẢO',
       sortOrder: SortOrder.ASC,
     });
 
@@ -80,10 +80,7 @@ describe('CategoriesService', () => {
     });
     expect(prisma.category.findMany).toHaveBeenCalledWith({
       where: {
-        OR: [
-          { name: { contains: 'biển', mode: 'insensitive' } },
-          { slug: { contains: 'biển', mode: 'insensitive' } },
-        ],
+        searchText: { contains: 'bien dao' },
       },
       skip: 0,
       take: 5,

@@ -182,7 +182,7 @@ describe('Places API (e2e)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     placesService.findAll.mockImplementation((query: QueryPlaceDto) => ({
-      items: query.search?.toLowerCase().includes('ha') ? [place] : [],
+      items: query.search?.toLowerCase().includes('da') ? [place] : [],
       page: query.page,
       limit: query.limit,
       totalItems: 1,
@@ -224,7 +224,7 @@ describe('Places API (e2e)', () => {
       app.getHttpServer() as unknown as SupertestApp,
     )
       .get(
-        `/api/v1/places?search=%20Ha%20&page=1&limit=1&provinceId=${PROVINCE_ID}&categoryId=${CATEGORY_ID}&sortBy=name&sortOrder=asc`,
+        `/api/v1/places?search=%20DA%20NANG%20&page=1&limit=1&provinceId=${PROVINCE_ID}&categoryId=${CATEGORY_ID}&sortBy=name&sortOrder=asc`,
       )
       .expect(200);
     const body = response.body as unknown as ListResponseBody;
@@ -247,7 +247,7 @@ describe('Places API (e2e)', () => {
     expect(typeof body.meta.requestId).toBe('string');
     expect(placesService.findAll).toHaveBeenCalledWith(
       expect.objectContaining({
-        search: 'Ha',
+        search: 'DA NANG',
         page: 1,
         limit: 1,
         provinceId: PROVINCE_ID,

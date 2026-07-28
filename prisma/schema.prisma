@@ -55,6 +55,7 @@ model User {
   email         String         @unique
   passwordHash  String?
   displayName   String
+  searchText    String         @default(dbgenerated()) @map("search_text")
   avatarUrl     String?
   role          Role           @default(USER)
   isActive      Boolean        @default(true)
@@ -70,6 +71,7 @@ model User {
 
   @@index([role, isActive])
   @@index([createdAt, id])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "users_search_text_trgm_idx")
   @@map("users")
 }
 
@@ -104,22 +106,26 @@ model OAuthAccount {
 }
 
 model Province {
-  id     String        @id @default(uuid())
-  name   String        @unique
-  slug   String        @unique
-  places Place[]
-  images EntityImage[]
+  id         String        @id @default(uuid())
+  name       String        @unique
+  slug       String        @unique
+  searchText String        @default(dbgenerated()) @map("search_text")
+  places     Place[]
+  images     EntityImage[]
 
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "provinces_search_text_trgm_idx")
   @@map("provinces")
 }
 
 model Category {
-  id     String          @id @default(uuid())
-  name   String          @unique
-  slug   String          @unique
-  places PlaceCategory[]
-  images EntityImage[]
+  id         String          @id @default(uuid())
+  name       String          @unique
+  slug       String          @unique
+  searchText String          @default(dbgenerated()) @map("search_text")
+  places     PlaceCategory[]
+  images     EntityImage[]
 
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "categories_search_text_trgm_idx")
   @@map("categories")
 }
 
@@ -129,6 +135,7 @@ model Place {
   slug        String          @unique
   description String
   address     String?
+  searchText  String          @default(dbgenerated()) @map("search_text")
   latitude    Float?
   longitude   Float?
   provinceId  String
@@ -147,6 +154,7 @@ model Place {
 
   @@index([provinceId])
   @@index([status, createdAt, id])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "places_search_text_trgm_idx")
   @@map("places")
 }
 
@@ -188,23 +196,25 @@ model EntityImage {
 }
 
 model Post {
-  id        String        @id @default(uuid())
-  authorId  String
-  author    User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  placeId   String?
-  place     Place?        @relation(fields: [placeId], references: [id], onDelete: Restrict)
-  title     String
-  content   String
-  source    PostSource    @default(USER)
-  status    ContentStatus @default(PENDING)
-  deletedAt DateTime?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id         String        @id @default(uuid())
+  authorId   String
+  author     User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  placeId    String?
+  place      Place?        @relation(fields: [placeId], references: [id], onDelete: Restrict)
+  title      String
+  content    String
+  searchText String        @default(dbgenerated()) @map("search_text")
+  source     PostSource    @default(USER)
+  status     ContentStatus @default(PENDING)
+  deletedAt  DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
   @@index([status, deletedAt, createdAt, id])
   @@index([authorId, deletedAt, createdAt, id])
   @@index([placeId, status, deletedAt, createdAt, id])
   @@index([source, status, createdAt, id])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "posts_search_text_trgm_idx")
   @@map("posts")
 }
 

@@ -100,7 +100,7 @@ describe('UsersService', () => {
     const query = Object.assign(new QueryUserDto(), {
       page: 1,
       limit: 10,
-      search: 'traveler',
+      search: 'NGUYỄN VĂN AN',
       role: Role.USER,
       isActive: true,
       sortBy: UserSortBy.EMAIL,
@@ -121,6 +121,11 @@ describe('UsersService', () => {
         skip: 0,
         take: 10,
         orderBy: [{ email: 'asc' }, { id: 'asc' }],
+        where: {
+          role: Role.USER,
+          isActive: true,
+          searchText: { contains: 'nguyen van an' },
+        },
       }),
     );
   });

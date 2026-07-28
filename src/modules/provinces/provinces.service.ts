@@ -10,6 +10,7 @@ import {
 } from '../../common/exceptions/reference-data.exceptions';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
 import { orderedEntityImages } from '../../common/utils/entity-image-query.util';
+import { normalizeSearchText } from '../../common/utils/search-text.util';
 import { toSlug } from '../../common/utils/slug.util';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateProvinceDto } from './dto/create-province.dto';
@@ -24,22 +25,12 @@ export class ProvincesService {
   async findAll(
     query: QueryProvinceDto,
   ): Promise<PaginatedResult<ProvinceResponseDto>> {
-    const where: Prisma.ProvinceWhereInput = query.search
+    const searchText = query.search ? normalizeSearchText(query.search) : '';
+    const where: Prisma.ProvinceWhereInput = searchText
       ? {
-          OR: [
-            {
-              name: {
-                contains: query.search,
-                mode: 'insensitive',
-              },
-            },
-            {
-              slug: {
-                contains: query.search,
-                mode: 'insensitive',
-              },
-            },
-          ],
+          searchText: {
+            contains: searchText,
+          },
         }
       : {};
     const [provinces, totalItems] = await this.prisma.$transaction([

@@ -90,6 +90,7 @@ describe('PostsService', () => {
     const result = await service.findAll(
       Object.assign(new QueryPostDto(), {
         placeId: PLACE_ID,
+        search: 'CỐ ĐÔ HUẾ',
         sortOrder: SortOrder.DESC,
       }),
     );
@@ -110,6 +111,7 @@ describe('PostsService', () => {
     expect(findArgs.where).toEqual(
       expect.objectContaining({
         placeId: PLACE_ID,
+        searchText: { contains: 'co do hue' },
         status: ContentStatus.PUBLISHED,
         deletedAt: null,
       }),

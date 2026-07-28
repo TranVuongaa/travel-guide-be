@@ -11,6 +11,7 @@ import {
 } from '../../common/exceptions/identity.exceptions';
 import { AuthUser } from '../../common/interfaces/auth-user.interface';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
+import { normalizeSearchText } from '../../common/utils/search-text.util';
 import { PrismaService } from '../../database/prisma.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { QueryUserDto } from './dto/query-user.dto';
@@ -55,25 +56,15 @@ export class UsersService {
   async findAll(
     query: QueryUserDto,
   ): Promise<PaginatedResult<UserResponseDto>> {
+    const searchText = query.search ? normalizeSearchText(query.search) : '';
     const where: Prisma.UserWhereInput = {
       ...(query.role ? { role: query.role } : {}),
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
-      ...(query.search
+      ...(searchText
         ? {
-            OR: [
-              {
-                email: {
-                  contains: query.search,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                displayName: {
-                  contains: query.search,
-                  mode: 'insensitive',
-                },
-              },
-            ],
+            searchText: {
+              contains: searchText,
+            },
           }
         : {}),
     };

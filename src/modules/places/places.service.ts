@@ -7,6 +7,7 @@ import { PlaceNotFoundException } from '../../common/exceptions/place-not-found.
 import { PlaceSlugConflictException } from '../../common/exceptions/place-slug-conflict.exception';
 import { ProvinceNotFoundException } from '../../common/exceptions/province-not-found.exception';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
+import { normalizeSearchText } from '../../common/utils/search-text.util';
 import { toSlug } from '../../common/utils/slug.util';
 import { PrismaService } from '../../database/prisma.service';
 import { CreatePlaceDto } from './dto/create-place.dto';
@@ -176,6 +177,8 @@ export class PlacesService {
   }
 
   private buildPublicWhere(query: QueryPlaceDto): Prisma.PlaceWhereInput {
+    const searchText = query.search ? normalizeSearchText(query.search) : '';
+
     return {
       status: ContentStatus.PUBLISHED,
       ...(query.provinceId ? { provinceId: query.provinceId } : {}),
@@ -186,28 +189,11 @@ export class PlacesService {
             },
           }
         : {}),
-      ...(query.search
+      ...(searchText
         ? {
-            OR: [
-              {
-                name: {
-                  contains: query.search,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                description: {
-                  contains: query.search,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                address: {
-                  contains: query.search,
-                  mode: 'insensitive',
-                },
-              },
-            ],
+            searchText: {
+              contains: searchText,
+            },
           }
         : {}),
     };

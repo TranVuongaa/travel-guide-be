@@ -237,12 +237,12 @@ describe('Province and Category API (e2e)', () => {
     const provinces = await request(
       app.getHttpServer() as unknown as SupertestApp,
     )
-      .get('/api/v1/provinces?search=%20Quảng%20&page=1&limit=10')
+      .get('/api/v1/provinces?search=%20QUANG%20NINH%20&page=1&limit=10')
       .expect(200);
     const categories = await request(
       app.getHttpServer() as unknown as SupertestApp,
     )
-      .get('/api/v1/categories?search=%20Biển%20&page=1&limit=5')
+      .get('/api/v1/categories?search=%20BIỂN%20ĐẢO%20&page=1&limit=5')
       .expect(200);
 
     expect((provinces.body as ListResponseBody).data.items).toEqual([province]);
@@ -257,9 +257,17 @@ describe('Province and Category API (e2e)', () => {
     ).toEqual(expect.objectContaining({ url: image.url, sortOrder: 0 }));
     expect(provincesService.findAll).toHaveBeenCalledWith(
       expect.objectContaining({
-        search: 'Quảng',
+        search: 'QUANG NINH',
         page: 1,
         limit: 10,
+        sortOrder: 'asc',
+      }),
+    );
+    expect(categoriesService.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        search: 'BIỂN ĐẢO',
+        page: 1,
+        limit: 5,
         sortOrder: 'asc',
       }),
     );
