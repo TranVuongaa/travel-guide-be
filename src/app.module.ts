@@ -12,7 +12,9 @@ import configuration from './config/configuration';
 import { validationSchema } from './config/validation.schema';
 import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 import { PlacesModule } from './modules/places/places.module';
+import { ProvincesModule } from './modules/provinces/provinces.module';
 import { UsersModule } from './modules/users/users.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -42,6 +44,8 @@ import { AppService } from './app.service';
     PrismaModule,
     UsersModule,
     AuthModule,
+    ProvincesModule,
+    CategoriesModule,
     PlacesModule,
   ],
   controllers: [AppController],

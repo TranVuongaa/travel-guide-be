@@ -7,6 +7,7 @@ import { PlaceNotFoundException } from '../../common/exceptions/place-not-found.
 import { PlaceSlugConflictException } from '../../common/exceptions/place-slug-conflict.exception';
 import { ProvinceNotFoundException } from '../../common/exceptions/province-not-found.exception';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
+import { toSlug } from '../../common/utils/slug.util';
 import { PrismaService } from '../../database/prisma.service';
 import { CreatePlaceDto } from './dto/create-place.dto';
 import { PlaceResponseDto } from './dto/place-response.dto';
@@ -16,7 +17,6 @@ import {
   placeWithRelationsInclude,
   PlaceWithRelations,
 } from './interfaces/place-with-relations.interface';
-import { toPlaceSlug } from './utils/place-slug.util';
 
 const MAX_SLUG_ATTEMPTS = 100;
 
@@ -275,7 +275,7 @@ export class PlacesService {
     name: string,
     currentPlaceId?: string,
   ): Promise<string> {
-    const baseSlug = toPlaceSlug(name);
+    const baseSlug = toSlug(name, 'destination');
 
     for (let attempt = 1; attempt <= MAX_SLUG_ATTEMPTS; attempt += 1) {
       const candidate = attempt === 1 ? baseSlug : `${baseSlug}-${attempt}`;

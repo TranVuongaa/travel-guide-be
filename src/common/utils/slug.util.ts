@@ -1,5 +1,5 @@
-export function toPlaceSlug(name: string): string {
-  const slug = name
+export function toSlug(value: string, fallback: string): string {
+  const slug = value
     .trim()
     .toLocaleLowerCase('vi')
     .replaceAll('đ', 'd')
@@ -8,5 +8,5 @@ export function toPlaceSlug(name: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-  return slug || 'destination';
+  return slug || fallback;
 }
