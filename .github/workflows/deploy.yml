@@ -16,8 +16,10 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             cd ${{ secrets.EC2_PROJECT_PATH }}
             git pull origin main
-            docker compose build --no-cache
-            docker compose up -d
+            docker compose up -d --build
+            sleep 5
+            docker compose ps | grep "Up" || (echo "Container not running!" && exit 1)
             docker image prune -f
