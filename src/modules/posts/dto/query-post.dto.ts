@@ -22,8 +22,14 @@ export class QueryPostDto extends PaginationDto {
   @IsUUID('4')
   authorId?: string;
 
-  @ApiPropertyOptional({ enum: PostSource })
+  @ApiPropertyOptional({
+    enum: PostSource,
+    description: 'Post source filter; an empty value applies no source filter',
+  })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
   @IsEnum(PostSource)
   source?: PostSource;
 

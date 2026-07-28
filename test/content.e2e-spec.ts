@@ -383,6 +383,37 @@ describe('Content and engagement API (e2e)', () => {
     );
   });
 
+  it('should treat an empty post source as no filter', async () => {
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .get('/api/v1/posts?page=1&limit=20&source=&sortOrder=desc')
+      .expect(200);
+
+    expect(postsService.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ source: undefined }),
+    );
+  });
+
+  it.each([PostSource.SYSTEM, PostSource.USER])(
+    'should accept the %s post source filter',
+    async (source) => {
+      await request(app.getHttpServer() as unknown as SupertestApp)
+        .get(`/api/v1/posts?source=${source}`)
+        .expect(200);
+
+      expect(postsService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ source }),
+      );
+    },
+  );
+
+  it('should reject a non-empty invalid post source', async () => {
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .get('/api/v1/posts?source=OTHER')
+      .expect(400);
+
+    expect(postsService.findAll).not.toHaveBeenCalled();
+  });
+
   it('should keep account-specific content reads protected', async () => {
     const server = app.getHttpServer() as unknown as SupertestApp;
 
