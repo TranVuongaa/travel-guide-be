@@ -8,6 +8,7 @@
 --   Password: Admin@123456
 --
 -- Apply all Prisma migrations before running this file.
+-- The complete 52-image URL snapshot is embedded; Internet access is not required.
 --
 -- Bash:
 --   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f prisma/seed-all.sql
@@ -360,8 +361,8 @@ JOIN "categories" AS category
     ON category."slug" = fixture."categorySlug"
 ON CONFLICT ("placeId", "categoryId") DO NOTHING;
 
--- Representative Commons image fixtures. Run `npm run db:seed:images` after
--- this SQL to resolve and upsert the complete 52-image curated manifest.
+-- Backward-compatible initial image fixtures retained for databases seeded by
+-- older revisions. The complete snapshot below upserts all 52 current owners.
 INSERT INTO "entity_images" (
     "id",
     "url",
@@ -524,6 +525,170 @@ LEFT JOIN "places" AS place
     ON fixture."ownerType" = 'place'
     AND place."slug" = fixture."ownerSlug"
 ON CONFLICT DO NOTHING;
+
+-- Complete, offline-capable image fixture snapshot. These records mirror
+-- src/database/entity-image-seed.data.ts and were resolved from Wikimedia
+-- Commons before being checked in. No Internet access is needed to run SQL.
+CREATE TEMP TABLE seed_entity_images_fixture (
+    id TEXT NOT NULL,
+    owner_type TEXT NOT NULL CHECK (owner_type IN ('province', 'category', 'place')),
+    owner_slug TEXT NOT NULL,
+    url TEXT NOT NULL,
+    source_page_url TEXT NOT NULL,
+    alt_text TEXT NOT NULL,
+    author TEXT,
+    license_name TEXT NOT NULL,
+    license_url TEXT,
+    width INTEGER NOT NULL CHECK (width > 0),
+    height INTEGER NOT NULL CHECK (height > 0),
+    sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
+    PRIMARY KEY (owner_type, owner_slug, sort_order)
+) ON COMMIT DROP;
+
+INSERT INTO seed_entity_images_fixture (
+    id,
+    owner_type,
+    owner_slug,
+    url,
+    source_page_url,
+    alt_text,
+    author,
+    license_name,
+    license_url,
+    width,
+    height,
+    sort_order
+)
+VALUES
+    ('81000000-0000-4000-8000-000000000001', 'province', 'an-giang', 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Mi%E1%BA%BFu_B%C3%A0_Ch%C3%BAa_X%E1%BB%A9_N%C3%BAi_Sam.jpg/1920px-Mi%E1%BA%BFu_B%C3%A0_Ch%C3%BAa_X%E1%BB%A9_N%C3%BAi_Sam.jpg', 'https://commons.wikimedia.org/wiki/File%3AMi%E1%BA%BFu_B%C3%A0_Ch%C3%BAa_X%E1%BB%A9_N%C3%BAi_Sam.jpg', 'Miếu Bà Chúa Xứ at Núi Sam in An Giang', 'Bùi Thụy Đào Nguyên', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000002', 'province', 'bac-ninh', 'https://upload.wikimedia.org/wikipedia/commons/8/87/Trung_t%C3%A2m_v%C4%83n_h%C3%B3a_Kinh_B%E1%BA%AFc.jpg', 'https://commons.wikimedia.org/wiki/File%3ATrung_t%C3%A2m_v%C4%83n_h%C3%B3a_Kinh_B%E1%BA%AFc.jpg', 'Kinh Bắc Cultural Center in Bắc Ninh', 'Chrisvomberg', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 800, 390, 0),
+    ('81000000-0000-4000-8000-000000000003', 'province', 'ca-mau', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/B%E1%BA%A1c_Li%C3%AAu_windpower_farm.jpg/1920px-B%E1%BA%A1c_Li%C3%AAu_windpower_farm.jpg', 'https://commons.wikimedia.org/wiki/File%3AB%E1%BA%A1c_Li%C3%AAu_windpower_farm.jpg', 'Coastal wind farm landscape in Cà Mau', '[Tycho] talk, http://shansov.net', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1600, 900, 0),
+    ('81000000-0000-4000-8000-000000000004', 'province', 'can-tho', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Can-tho-tuonglamphotos.jpg/1920px-Can-tho-tuonglamphotos.jpg', 'https://commons.wikimedia.org/wiki/File%3ACan-tho-tuonglamphotos.jpg', 'Riverfront cityscape in Cần Thơ', 'Trantuonglam', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 900, 0),
+    ('81000000-0000-4000-8000-000000000005', 'province', 'cao-bang', 'https://upload.wikimedia.org/wikipedia/commons/9/9b/Ban_Gioc_-_Detian_Falls2.jpg', 'https://commons.wikimedia.org/wiki/File%3ABan_Gioc_-_Detian_Falls2.jpg', 'Bản Giốc waterfalls in Cao Bằng', 'jankgo', 'CC BY 2.0', 'https://creativecommons.org/licenses/by/2.0', 1920, 1284, 0),
+    ('81000000-0000-4000-8000-000000000006', 'province', 'da-nang', 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Dragon_Bridge%2C_Da_Nang_during_day_-_20230819_%28cropped%29.jpg/1920px-Dragon_Bridge%2C_Da_Nang_during_day_-_20230819_%28cropped%29.jpg', 'https://commons.wikimedia.org/wiki/File%3ADragon_Bridge%2C_Da_Nang_during_day_-_20230819_(cropped).jpg', 'Dragon Bridge over the Hàn River in Đà Nẵng', 'Somerset999', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 837, 0),
+    ('81000000-0000-4000-8000-000000000007', 'province', 'dak-lak', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Muidienvaobinhminh.jpg/1920px-Muidienvaobinhminh.jpg', 'https://commons.wikimedia.org/wiki/File%3AMuidienvaobinhminh.jpg', 'Sunrise on the coast of Đắk Lắk', 'Lê Nguyễn Nhật Long', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1063, 0),
+    ('81000000-0000-4000-8000-000000000008', 'province', 'dien-bien', 'https://upload.wikimedia.org/wikipedia/commons/7/76/M%C6%B0%E1%BB%9Dng_Lay_skyline.jpg', 'https://commons.wikimedia.org/wiki/File%3AM%C6%B0%E1%BB%9Dng_Lay_skyline.jpg', 'Mountain skyline of Mường Lay in Điện Biên', '[Tycho], http://shansov.net', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1920, 1080, 0),
+    ('81000000-0000-4000-8000-000000000009', 'province', 'dong-nai', 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Nh%C3%A0_th%E1%BB%9D_ch%C3%ADnh_V%C4%83n_mi%E1%BA%BFu_Tr%E1%BA%A5n_Bi%C3%AAn.jpg/1920px-Nh%C3%A0_th%E1%BB%9D_ch%C3%ADnh_V%C4%83n_mi%E1%BA%BFu_Tr%E1%BA%A5n_Bi%C3%AAn.jpg', 'https://commons.wikimedia.org/wiki/File%3ANh%C3%A0_th%E1%BB%9D_ch%C3%ADnh_V%C4%83n_mi%E1%BA%BFu_Tr%E1%BA%A5n_Bi%C3%AAn.jpg', 'Trấn Biên Temple of Literature in Đồng Nai', 'Bùi Thụy Đào Nguyên', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000010', 'province', 'dong-thap', 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/C%E1%BA%A7u_Cao_L%C3%A3nh.jpg/1920px-C%E1%BA%A7u_Cao_L%C3%A3nh.jpg', 'https://commons.wikimedia.org/wiki/File%3AC%E1%BA%A7u_Cao_L%C3%A3nh.jpg', 'Cao Lãnh Bridge over the Tiền River in Đồng Tháp', 'Bùi Thụy Đào Nguyên', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1067, 0),
+    ('81000000-0000-4000-8000-000000000011', 'province', 'gia-lai', 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Ho_T%27Nung_%282%29.jpg/1920px-Ho_T%27Nung_%282%29.jpg', 'https://commons.wikimedia.org/wiki/File%3AHo_T''Nung_(2).jpg', 'T’Nưng Lake in Gia Lai', 'Phó Nháy', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000012', 'province', 'ha-noi', 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Hanoi_skyline_with_Ba_Vi_Mountain.jpg/1920px-Hanoi_skyline_with_Ba_Vi_Mountain.jpg', 'https://commons.wikimedia.org/wiki/File%3AHanoi_skyline_with_Ba_Vi_Mountain.jpg', 'Hà Nội skyline with Ba Vì Mountain', 'Quangnlnhe182394', 'CC0', 'https://creativecommons.org/publicdomain/zero/1.0/deed.en', 1600, 854, 0),
+    ('81000000-0000-4000-8000-000000000013', 'province', 'ha-tinh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Thiencambeach.jpg/1920px-Thiencambeach.jpg', 'https://commons.wikimedia.org/wiki/File%3AThiencambeach.jpg', 'Thiên Cầm Beach in Hà Tĩnh', 'Khoitran1957', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 900, 0),
+    ('81000000-0000-4000-8000-000000000014', 'province', 'hai-phong', 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/S%C3%B4ng_C%E1%BA%A5m_H%E1%BA%A3i_Ph%C3%B2ng_V%E1%BB%81_%C4%90%C3%AAm_n%C4%83m_2025.jpg/1920px-S%C3%B4ng_C%E1%BA%A5m_H%E1%BA%A3i_Ph%C3%B2ng_V%E1%BB%81_%C4%90%C3%AAm_n%C4%83m_2025.jpg', 'https://commons.wikimedia.org/wiki/File%3AS%C3%B4ng_C%E1%BA%A5m_H%E1%BA%A3i_Ph%C3%B2ng_V%E1%BB%81_%C4%90%C3%AAm_n%C4%83m_2025.jpg', 'Cấm River waterfront in Hải Phòng at night', 'HP1992', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000015', 'province', 'hue', 'https://upload.wikimedia.org/wikipedia/commons/b/b9/%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg', 'https://commons.wikimedia.org/wiki/File%3A%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg', 'Imperial City in Huế', 'NguyenThanhBac123', 'CC0', 'https://creativecommons.org/publicdomain/zero/1.0/deed.en', 900, 531, 0),
+    ('81000000-0000-4000-8000-000000000016', 'province', 'hung-yen', 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/V%C4%83n_mi%E1%BA%BFu_X%C3%ADch_%C4%90%E1%BA%B1ng_01.JPG/1920px-V%C4%83n_mi%E1%BA%BFu_X%C3%ADch_%C4%90%E1%BA%B1ng_01.JPG', 'https://commons.wikimedia.org/wiki/File%3AV%C4%83n_mi%E1%BA%BFu_X%C3%ADch_%C4%90%E1%BA%B1ng_01.JPG', 'Xích Đằng Temple of Literature in Hưng Yên', 'Nguyễn Thanh Quang', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000017', 'province', 'khanh-hoa', 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/PonNagarChamTowers.jpg/1920px-PonNagarChamTowers.jpg', 'https://commons.wikimedia.org/wiki/File%3APonNagarChamTowers.jpg', 'Po Nagar Cham towers in Khánh Hòa', 'wileypics', 'CC BY 2.0', 'https://creativecommons.org/licenses/by/2.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000018', 'province', 'lai-chau', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Sunset_on_O_Quy_Ho_pass.jpg/1920px-Sunset_on_O_Quy_Ho_pass.jpg', 'https://commons.wikimedia.org/wiki/File%3ASunset_on_O_Quy_Ho_pass.jpg', 'Sunset over Ô Quy Hồ Pass in Lai Châu', 'Dansapa', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000019', 'province', 'lam-dong', 'https://upload.wikimedia.org/wikipedia/commons/a/ae/Da_Lat%2C_view_to_Xuan_Huong_lake_2.jpg', 'https://commons.wikimedia.org/wiki/File%3ADa_Lat%2C_view_to_Xuan_Huong_lake_2.jpg', 'Đà Lạt and Xuân Hương Lake in Lâm Đồng', 'lionlyonne', 'CC BY-SA 2.0', 'https://creativecommons.org/licenses/by-sa/2.0', 618, 439, 0),
+    ('81000000-0000-4000-8000-000000000020', 'province', 'lang-son', 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/M%E1%BA%ABu_S%C6%A1n.jpg/1920px-M%E1%BA%ABu_S%C6%A1n.jpg', 'https://commons.wikimedia.org/wiki/File%3AM%E1%BA%ABu_S%C6%A1n.jpg', 'Mountain landscape at Mẫu Sơn in Lạng Sơn', 'Minh Chu', 'CC BY-SA 2.0', 'https://creativecommons.org/licenses/by-sa/2.0', 1600, 828, 0),
+    ('81000000-0000-4000-8000-000000000021', 'province', 'lao-cai', 'https://upload.wikimedia.org/wikipedia/commons/0/0b/C%C3%A1p-treo-fan-12.jpg', 'https://commons.wikimedia.org/wiki/File%3AC%C3%A1p-treo-fan-12.jpg', 'Fansipan cable car above the mountains of Lào Cai', 'Viwikipediaorg', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 593, 440, 0),
+    ('81000000-0000-4000-8000-000000000022', 'province', 'nghe-an', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/B%C3%A3i_bi%E1%BB%83n_C%E1%BB%ADa_L%C3%B2..jpg/1920px-B%C3%A3i_bi%E1%BB%83n_C%E1%BB%ADa_L%C3%B2..jpg', 'https://commons.wikimedia.org/wiki/File%3AB%C3%A3i_bi%E1%BB%83n_C%E1%BB%ADa_L%C3%B2..jpg', 'Cửa Lò Beach in Nghệ An', 'Bùi Thụy Đào Nguyên', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000023', 'province', 'ninh-binh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Tam_Coc_by_Tuan_Mai_%22007%22_%288888350545%29.jpg/1920px-Tam_Coc_by_Tuan_Mai_%22007%22_%288888350545%29.jpg', 'https://commons.wikimedia.org/wiki/File%3ATam_Coc_by_Tuan_Mai_%22007%22_(8888350545).jpg', 'Limestone karsts and river at Tam Cốc in Ninh Bình', 'Tuan Mai', 'CC BY 2.0', 'https://creativecommons.org/licenses/by/2.0', 1600, 1066, 0),
+    ('81000000-0000-4000-8000-000000000024', 'province', 'phu-tho', 'https://upload.wikimedia.org/wikipedia/commons/b/bc/%C4%90%E1%BB%81n_H%C3%B9ng.JPG', 'https://commons.wikimedia.org/wiki/File%3A%C4%90%E1%BB%81n_H%C3%B9ng.JPG', 'Hùng Kings Temple in Phú Thọ', 'Hoangvantoanajc', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1673, 1199, 0),
+    ('81000000-0000-4000-8000-000000000025', 'province', 'quang-ngai', 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Ly_Son_Islands_%2814817868968%29.jpg/1920px-Ly_Son_Islands_%2814817868968%29.jpg', 'https://commons.wikimedia.org/wiki/File%3ALy_Son_Islands_(14817868968).jpg', 'Lý Sơn Islands in Quảng Ngãi', 'minhphuc_99kdd', 'Public domain', NULL, 1600, 1027, 0),
+    ('81000000-0000-4000-8000-000000000026', 'province', 'quang-ninh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Ha_Long_Bay_in_2019.jpg/1920px-Ha_Long_Bay_in_2019.jpg', 'https://commons.wikimedia.org/wiki/File%3AHa_Long_Bay_in_2019.jpg', 'Limestone islands in Hạ Long Bay, Quảng Ninh', 'Taewangkorea', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1122, 0),
+    ('81000000-0000-4000-8000-000000000027', 'province', 'quang-tri', 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Th%C3%A0nh_c%E1%BB%95_Qu%E1%BA%A3ng_Tr%E1%BB%8B_Foto.jpg/1920px-Th%C3%A0nh_c%E1%BB%95_Qu%E1%BA%A3ng_Tr%E1%BB%8B_Foto.jpg', 'https://commons.wikimedia.org/wiki/File%3ATh%C3%A0nh_c%E1%BB%95_Qu%E1%BA%A3ng_Tr%E1%BB%8B_Foto.jpg', 'Quảng Trị Citadel', 'Bùi Thụy Đào Nguyên', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1192, 0),
+    ('81000000-0000-4000-8000-000000000028', 'province', 'son-la', 'https://upload.wikimedia.org/wikipedia/commons/d/d2/S%C6%A1n_La_Province.JPG', 'https://commons.wikimedia.org/wiki/File%3AS%C6%A1n_La_Province.JPG', 'Mountain valley landscape in Sơn La', '[Tycho], http://shansov.net', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1920, 1280, 0),
+    ('81000000-0000-4000-8000-000000000029', 'province', 'tay-ninh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Dau_Tieng_Lake_-_50766650163.png/1920px-Dau_Tieng_Lake_-_50766650163.png', 'https://commons.wikimedia.org/wiki/File%3ADau_Tieng_Lake_-_50766650163.png', 'Dầu Tiếng Lake in Tây Ninh', 'Cuong Tran', 'Public domain', NULL, 1600, 1067, 0),
+    ('81000000-0000-4000-8000-000000000030', 'province', 'thai-nguyen', 'https://upload.wikimedia.org/wikipedia/commons/7/71/Ba_Be_Lake_5.jpg', 'https://commons.wikimedia.org/wiki/File%3ABa_Be_Lake_5.jpg', 'Ba Bể Lake in Thái Nguyên', 'Pilip', 'CC BY-SA 2.0', 'https://creativecommons.org/licenses/by-sa/2.0', 1280, 960, 0),
+    ('81000000-0000-4000-8000-000000000031', 'province', 'thanh-hoa', 'https://upload.wikimedia.org/wikipedia/commons/0/0d/H%C3%B2n_Tr%E1%BB%91ng_m%C3%A1i..jpg', 'https://commons.wikimedia.org/wiki/File%3AH%C3%B2n_Tr%E1%BB%91ng_m%C3%A1i..jpg', 'Hòn Trống Mái rocks in Thanh Hóa', 'Ratmanhme282020', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 640, 480, 0),
+    ('81000000-0000-4000-8000-000000000032', 'province', 'ho-chi-minh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Ho_Chi_Minh_City%2C_City_Hall%2C_2020-01_CN-03.jpg/1920px-Ho_Chi_Minh_City%2C_City_Hall%2C_2020-01_CN-03.jpg', 'https://commons.wikimedia.org/wiki/File%3AHo_Chi_Minh_City%2C_City_Hall%2C_2020-01_CN-03.jpg', 'City Hall in Hồ Chí Minh City', 'Steffen Schmitz', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1228, 0),
+    ('81000000-0000-4000-8000-000000000033', 'province', 'tuyen-quang', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/S%C3%B4ng_Nho_Qu%E1%BA%BF_2022_-_NKS.jpg/1920px-S%C3%B4ng_Nho_Qu%E1%BA%BF_2022_-_NKS.jpg', 'https://commons.wikimedia.org/wiki/File%3AS%C3%B4ng_Nho_Qu%E1%BA%BF_2022_-_NKS.jpg', 'Nho Quế River canyon in Tuyên Quang', 'NKSTTSSHNVN', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1067, 0),
+    ('81000000-0000-4000-8000-000000000034', 'province', 'vinh-long', 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Trung_t%C3%A2m_H%C3%A0nh_ch%C3%ADnh_t%E1%BB%89nh_V%C4%A9nh_Long.jpg/1920px-Trung_t%C3%A2m_H%C3%A0nh_ch%C3%ADnh_t%E1%BB%89nh_V%C4%A9nh_Long.jpg', 'https://commons.wikimedia.org/wiki/File%3ATrung_t%C3%A2m_H%C3%A0nh_ch%C3%ADnh_t%E1%BB%89nh_V%C4%A9nh_Long.jpg', 'Vĩnh Long provincial administrative center', 'ZuckPham', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000035', 'category', 'bien-dao', 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Beautiful_beach_on_Phu_Quoc_island_Vietnam_%2839543775721%29.jpg/1920px-Beautiful_beach_on_Phu_Quoc_island_Vietnam_%2839543775721%29.jpg', 'https://commons.wikimedia.org/wiki/File%3ABeautiful_beach_on_Phu_Quoc_island_Vietnam_(39543775721).jpg', 'Tropical beach on Phú Quốc Island', 'dronepicr', 'CC BY 2.0', 'https://creativecommons.org/licenses/by/2.0', 1600, 1067, 0),
+    ('81000000-0000-4000-8000-000000000036', 'category', 'nui-cao-nguyen', 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Landscape_in_Sa_Pa_%28Vietnam%29.jpg', 'https://commons.wikimedia.org/wiki/File%3ALandscape_in_Sa_Pa_(Vietnam).jpg', 'Mountain and highland landscape in Sa Pa', NULL, 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0/', 1333, 1000, 0),
+    ('81000000-0000-4000-8000-000000000037', 'category', 'thien-nhien', 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Bangioc9tam.jpg/1920px-Bangioc9tam.jpg', 'https://commons.wikimedia.org/wiki/File%3ABangioc9tam.jpg', 'Bản Giốc waterfall surrounded by nature', 'Lê Minh Phát', 'CC BY 2.0', 'https://creativecommons.org/licenses/by/2.0', 1600, 923, 0),
+    ('81000000-0000-4000-8000-000000000038', 'category', 'di-tich-lich-su', 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Th%C3%A0nh_c%E1%BB%95_Qu%E1%BA%A3ng_Tr%E1%BB%8B_2.jpg/1920px-Th%C3%A0nh_c%E1%BB%95_Qu%E1%BA%A3ng_Tr%E1%BB%8B_2.jpg', 'https://commons.wikimedia.org/wiki/File%3ATh%C3%A0nh_c%E1%BB%95_Qu%E1%BA%A3ng_Tr%E1%BB%8B_2.jpg', 'Historic Quảng Trị Citadel', 'Bùi Thụy Đào Nguyên', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000039', 'category', 'van-hoa', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Thang_Long_Water_Puppet_Theatre2.JPG/1920px-Thang_Long_Water_Puppet_Theatre2.JPG', 'https://commons.wikimedia.org/wiki/File%3AThang_Long_Water_Puppet_Theatre2.JPG', 'Traditional Vietnamese water puppetry', 'Gryffindor', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000040', 'category', 'tam-linh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/ThienMuPagoda.jpg/1920px-ThienMuPagoda.jpg', 'https://commons.wikimedia.org/wiki/File%3AThienMuPagoda.jpg', 'Thiên Mụ Pagoda in Huế', 'Lưu Ly', 'Public domain', NULL, 1600, 2133, 0),
+    ('81000000-0000-4000-8000-000000000041', 'category', 'am-thuc', 'https://upload.wikimedia.org/wikipedia/commons/f/f3/Pho_Ha_Noi.jpg', 'https://commons.wikimedia.org/wiki/File%3APho_Ha_Noi.jpg', 'A bowl of Hà Nội phở', 'snips', 'CC BY 2.0', 'https://creativecommons.org/licenses/by/2.0', 1024, 576, 0),
+    ('81000000-0000-4000-8000-000000000042', 'category', 'sinh-thai', 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Mekong_Floating_Market.jpg/1920px-Mekong_Floating_Market.jpg', 'https://commons.wikimedia.org/wiki/File%3AMekong_Floating_Market.jpg', 'Floating market in the Mekong Delta', 'Radek Kucharski', 'CC BY 2.0', 'https://creativecommons.org/licenses/by/2.0', 1600, 900, 0),
+    ('81000000-0000-4000-8000-000000000043', 'category', 'nghi-duong', 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Nha_Trang_Beach_5.jpg/1920px-Nha_Trang_Beach_5.jpg', 'https://commons.wikimedia.org/wiki/File%3ANha_Trang_Beach_5.jpg', 'Beach resort coast at Nha Trang', 'Christophe95', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000044', 'category', 'phieu-luu', 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Son_Doong_Cave_5.jpg/1920px-Son_Doong_Cave_5.jpg', 'https://commons.wikimedia.org/wiki/File%3ASon_Doong_Cave_5.jpg', 'Expedition landscape inside Sơn Đoòng Cave', 'Doug Knuth from Woodstock, IL', 'CC BY-SA 2.0', 'https://creativecommons.org/licenses/by-sa/2.0', 1600, 2030, 0),
+    ('81000000-0000-4000-8000-000000000045', 'category', 'vui-choi-giai-tri', 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Golden_Bridge_at_Ba_Na_Hills_20250718.jpg/1920px-Golden_Bridge_at_Ba_Na_Hills_20250718.jpg', 'https://commons.wikimedia.org/wiki/File%3AGolden_Bridge_at_Ba_Na_Hills_20250718.jpg', 'Golden Bridge attraction at Bà Nà Hills', 'DvTor8303', 'CC0', 'https://creativecommons.org/publicdomain/zero/1.0/deed.en', 1600, 1035, 0),
+    ('81000000-0000-4000-8000-000000000046', 'category', 'lang-nghe', 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Bat_Trang_porcelain_marketplace_in_2014.jpg/1920px-Bat_Trang_porcelain_marketplace_in_2014.jpg', 'https://commons.wikimedia.org/wiki/File%3ABat_Trang_porcelain_marketplace_in_2014.jpg', 'Traditional Bát Tràng pottery marketplace', 'Vuong Tri Binh', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 901, 0),
+    ('81000000-0000-4000-8000-000000000047', 'place', 'vinh-ha-long', 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Ha_Long_Bay_in_2019.jpg/1920px-Ha_Long_Bay_in_2019.jpg', 'https://commons.wikimedia.org/wiki/File%3AHa_Long_Bay_in_2019.jpg', 'Limestone islands in Hạ Long Bay', 'Taewangkorea', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1122, 0),
+    ('81000000-0000-4000-8000-000000000048', 'place', 'pho-co-hoi-an', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-06.jpg/1920px-H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-06.jpg', 'https://commons.wikimedia.org/wiki/File%3AH%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-06.jpg', 'Lantern-lit street in Hội An Ancient Town', 'Steffen Schmitz', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 1029, 0),
+    ('81000000-0000-4000-8000-000000000049', 'place', 'phong-nha-ke-bang', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Phongnhakebang6.jpg/1920px-Phongnhakebang6.jpg', 'https://commons.wikimedia.org/wiki/File%3APhongnhakebang6.jpg', 'Karst landscape in Phong Nha–Kẻ Bàng National Park', 'Genghiskhanviet', 'Public domain', NULL, 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000050', 'place', 'da-lat', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Xuan_Huong_Lake_11.jpg/1920px-Xuan_Huong_Lake_11.jpg', 'https://commons.wikimedia.org/wiki/File%3AXuan_Huong_Lake_11.jpg', 'Xuân Hương Lake in Đà Lạt', 'Diane Selwyn', 'CC BY-SA 3.0', 'https://creativecommons.org/licenses/by-sa/3.0', 1600, 1200, 0),
+    ('81000000-0000-4000-8000-000000000051', 'place', 'phu-quoc', 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Bai-sao-phu-quoc-tuonglamphotos.jpg/1920px-Bai-sao-phu-quoc-tuonglamphotos.jpg', 'https://commons.wikimedia.org/wiki/File%3ABai-sao-phu-quoc-tuonglamphotos.jpg', 'Sao Beach on Phú Quốc Island', 'Trantuonglam', 'CC BY-SA 4.0', 'https://creativecommons.org/licenses/by-sa/4.0', 1600, 900, 0),
+    ('81000000-0000-4000-8000-000000000052', 'place', 'dai-noi-hue', 'https://upload.wikimedia.org/wikipedia/commons/b/b9/%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg', 'https://commons.wikimedia.org/wiki/File%3A%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg', 'Imperial City of Huế', 'NguyenThanhBac123', 'CC0', 'https://creativecommons.org/publicdomain/zero/1.0/deed.en', 900, 531, 0);
+
+-- Owner-specific conflict targets make this compatible with rows previously
+-- created by either this SQL or `npm run db:seed:images`.
+INSERT INTO "entity_images" (
+    "id", "url", "sourcePageUrl", "altText", "author", "licenseName",
+    "licenseUrl", "width", "height", "sortOrder", "provinceId",
+    "createdAt", "updatedAt"
+)
+SELECT
+    fixture.id, fixture.url, fixture.source_page_url, fixture.alt_text,
+    fixture.author, fixture.license_name, fixture.license_url, fixture.width,
+    fixture.height, fixture.sort_order, province."id",
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM seed_entity_images_fixture AS fixture
+JOIN "provinces" AS province ON province."slug" = fixture.owner_slug
+WHERE fixture.owner_type = 'province'
+ON CONFLICT ("provinceId", "sortOrder") DO UPDATE
+SET
+    "url" = EXCLUDED."url",
+    "sourcePageUrl" = EXCLUDED."sourcePageUrl",
+    "altText" = EXCLUDED."altText",
+    "author" = EXCLUDED."author",
+    "licenseName" = EXCLUDED."licenseName",
+    "licenseUrl" = EXCLUDED."licenseUrl",
+    "width" = EXCLUDED."width",
+    "height" = EXCLUDED."height",
+    "updatedAt" = CURRENT_TIMESTAMP;
+
+INSERT INTO "entity_images" (
+    "id", "url", "sourcePageUrl", "altText", "author", "licenseName",
+    "licenseUrl", "width", "height", "sortOrder", "categoryId",
+    "createdAt", "updatedAt"
+)
+SELECT
+    fixture.id, fixture.url, fixture.source_page_url, fixture.alt_text,
+    fixture.author, fixture.license_name, fixture.license_url, fixture.width,
+    fixture.height, fixture.sort_order, category."id",
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM seed_entity_images_fixture AS fixture
+JOIN "categories" AS category ON category."slug" = fixture.owner_slug
+WHERE fixture.owner_type = 'category'
+ON CONFLICT ("categoryId", "sortOrder") DO UPDATE
+SET
+    "url" = EXCLUDED."url",
+    "sourcePageUrl" = EXCLUDED."sourcePageUrl",
+    "altText" = EXCLUDED."altText",
+    "author" = EXCLUDED."author",
+    "licenseName" = EXCLUDED."licenseName",
+    "licenseUrl" = EXCLUDED."licenseUrl",
+    "width" = EXCLUDED."width",
+    "height" = EXCLUDED."height",
+    "updatedAt" = CURRENT_TIMESTAMP;
+
+INSERT INTO "entity_images" (
+    "id", "url", "sourcePageUrl", "altText", "author", "licenseName",
+    "licenseUrl", "width", "height", "sortOrder", "placeId",
+    "createdAt", "updatedAt"
+)
+SELECT
+    fixture.id, fixture.url, fixture.source_page_url, fixture.alt_text,
+    fixture.author, fixture.license_name, fixture.license_url, fixture.width,
+    fixture.height, fixture.sort_order, place."id",
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM seed_entity_images_fixture AS fixture
+JOIN "places" AS place ON place."slug" = fixture.owner_slug
+WHERE fixture.owner_type = 'place'
+ON CONFLICT ("placeId", "sortOrder") DO UPDATE
+SET
+    "url" = EXCLUDED."url",
+    "sourcePageUrl" = EXCLUDED."sourcePageUrl",
+    "altText" = EXCLUDED."altText",
+    "author" = EXCLUDED."author",
+    "licenseName" = EXCLUDED."licenseName",
+    "licenseUrl" = EXCLUDED."licenseUrl",
+    "width" = EXCLUDED."width",
+    "height" = EXCLUDED."height",
+    "updatedAt" = CURRENT_TIMESTAMP;
 
 -- Published Posts from system and user sources.
 INSERT INTO "posts" (
@@ -1119,6 +1284,103 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'Seed validation failed: Place rating aggregate mismatch';
     END IF;
+
+    IF (
+        SELECT
+            COUNT(*) <> 52
+            OR COUNT(*) FILTER (WHERE owner_type = 'province') <> 34
+            OR COUNT(*) FILTER (WHERE owner_type = 'category') <> 12
+            OR COUNT(*) FILTER (WHERE owner_type = 'place') <> 6
+        FROM seed_entity_images_fixture
+    ) THEN
+        RAISE EXCEPTION 'Seed validation failed: expected 34 Province, 12 Category, and 6 Place image fixtures';
+    END IF;
+
+    IF (
+        WITH matched_images AS (
+            SELECT
+                fixture.owner_type,
+                image."url",
+                image."sourcePageUrl",
+                image."altText",
+                image."licenseName",
+                image."width",
+                image."height",
+                image."sortOrder",
+                image."provinceId",
+                image."categoryId",
+                image."placeId"
+            FROM seed_entity_images_fixture AS fixture
+            JOIN "provinces" AS province
+                ON fixture.owner_type = 'province'
+                AND province."slug" = fixture.owner_slug
+            JOIN "entity_images" AS image
+                ON image."provinceId" = province."id"
+                AND image."sortOrder" = fixture.sort_order
+
+            UNION ALL
+
+            SELECT
+                fixture.owner_type,
+                image."url",
+                image."sourcePageUrl",
+                image."altText",
+                image."licenseName",
+                image."width",
+                image."height",
+                image."sortOrder",
+                image."provinceId",
+                image."categoryId",
+                image."placeId"
+            FROM seed_entity_images_fixture AS fixture
+            JOIN "categories" AS category
+                ON fixture.owner_type = 'category'
+                AND category."slug" = fixture.owner_slug
+            JOIN "entity_images" AS image
+                ON image."categoryId" = category."id"
+                AND image."sortOrder" = fixture.sort_order
+
+            UNION ALL
+
+            SELECT
+                fixture.owner_type,
+                image."url",
+                image."sourcePageUrl",
+                image."altText",
+                image."licenseName",
+                image."width",
+                image."height",
+                image."sortOrder",
+                image."provinceId",
+                image."categoryId",
+                image."placeId"
+            FROM seed_entity_images_fixture AS fixture
+            JOIN "places" AS place
+                ON fixture.owner_type = 'place'
+                AND place."slug" = fixture.owner_slug
+            JOIN "entity_images" AS image
+                ON image."placeId" = place."id"
+                AND image."sortOrder" = fixture.sort_order
+        )
+        SELECT
+            COUNT(*) <> 52
+            OR COUNT(*) FILTER (
+                WHERE
+                    "url" !~ '^https://'
+                    OR "sourcePageUrl" !~ '^https://'
+                    OR BTRIM("altText") = ''
+                    OR BTRIM("licenseName") = ''
+                    OR "width" IS NULL
+                    OR "width" <= 0
+                    OR "height" IS NULL
+                    OR "height" <= 0
+                    OR "sortOrder" < 0
+                    OR num_nonnulls("provinceId", "categoryId", "placeId") <> 1
+            ) <> 0
+        FROM matched_images
+    ) THEN
+        RAISE EXCEPTION 'Seed validation failed: missing owner image or invalid image metadata';
+    END IF;
 END
 $seed_validation$;
 
@@ -1142,3 +1404,21 @@ FROM (
         ('reactions', (SELECT COUNT(*) FROM "reactions"))
 ) AS seeded_table_summary ("table", "rowCount")
 ORDER BY "table";
+
+SELECT *
+FROM (
+    VALUES
+        (
+            'province_images',
+            (SELECT COUNT(*) FROM "entity_images" WHERE "provinceId" IS NOT NULL)
+        ),
+        (
+            'category_images',
+            (SELECT COUNT(*) FROM "entity_images" WHERE "categoryId" IS NOT NULL)
+        ),
+        (
+            'place_images',
+            (SELECT COUNT(*) FROM "entity_images" WHERE "placeId" IS NOT NULL)
+        )
+) AS seeded_image_summary ("ownerType", "rowCount")
+ORDER BY "ownerType";
