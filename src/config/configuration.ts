@@ -21,12 +21,12 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
 export default () => ({
   port: parseInteger(process.env.PORT, 3000),
   corsOrigins: parseCsv(process.env.CORS_ORIGINS),
-  throttle: {
-    ttlMs: parseInteger(process.env.THROTTLE_TTL_MS, 60000),
-    limit: parseInteger(process.env.THROTTLE_LIMIT, 60),
-    authTtlMs: parseInteger(process.env.AUTH_THROTTLE_TTL_MS, 60000),
-    authLimit: parseInteger(process.env.AUTH_THROTTLE_LIMIT, 5),
-  },
+  // throttle: {
+  //   ttlMs: parseInteger(process.env.THROTTLE_TTL_MS, 60000),
+  //   limit: parseInteger(process.env.THROTTLE_LIMIT, 60),
+  //   authTtlMs: parseInteger(process.env.AUTH_THROTTLE_TTL_MS, 60000),
+  //   authLimit: parseInteger(process.env.AUTH_THROTTLE_LIMIT, 5),
+  // },
   auth: {
     jwtAccessSecret: process.env.JWT_ACCESS_SECRET,
     jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
