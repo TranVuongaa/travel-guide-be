@@ -531,6 +531,7 @@ INSERT INTO "posts" (
     "authorId",
     "placeId",
     "title",
+    "description",
     "content",
     "source",
     "status",
@@ -543,6 +544,7 @@ SELECT
     author."id",
     place."id",
     fixture."title",
+    fixture."description",
     fixture."content",
     fixture."source"::"PostSource",
     'PUBLISHED'::"ContentStatus",
@@ -556,7 +558,8 @@ FROM (
             'admin@example.com',
             'vinh-ha-long',
             'Cẩm nang khám phá Vịnh Hạ Long',
-            'Nên dành ít nhất hai ngày để tham quan vịnh, chèo kayak và ngắm hoàng hôn trên boong tàu.',
+            'Lịch trình hai ngày với những trải nghiệm đáng nhớ nhất trên Vịnh Hạ Long.',
+            '<p>Vịnh Hạ Long đẹp nhất khi bạn dành đủ thời gian để đi sâu vào vùng lõi di sản.</p><h2>Ngày đầu trên vịnh</h2><p>Khởi hành từ Tuần Châu, nhận phòng trên tàu và ngắm các đảo đá vôi từ boong tàu.</p><h2>Trải nghiệm nên thử</h2><ul><li>Chèo kayak vào buổi chiều.</li><li>Ngắm hoàng hôn trên boong tàu.</li><li>Thăm hang động vào sáng hôm sau.</li></ul><blockquote>Hãy mang theo kem chống nắng và một áo khoác mỏng cho buổi tối.</blockquote>',
             'SYSTEM',
             CURRENT_TIMESTAMP - INTERVAL '20 days'
         ),
@@ -565,7 +568,8 @@ FROM (
             'editor@example.com',
             'pho-co-hoi-an',
             'Một ngày đi bộ trong phố cổ Hội An',
-            'Buổi sáng ghé chợ, chiều tham quan các hội quán và tối dạo phố đèn lồng bên sông Hoài.',
+            'Gợi ý lịch trình đi bộ từ chợ Hội An đến phố đèn lồng bên sông Hoài.',
+            '<p>Phố cổ Hội An phù hợp để khám phá chậm rãi bằng cách đi bộ trong một ngày.</p><h2>Buổi sáng</h2><p>Ghé chợ Hội An, thưởng thức một bữa sáng địa phương rồi đi dọc các tuyến phố cổ.</p><h2>Buổi chiều và buổi tối</h2><p>Tham quan các hội quán, nghỉ chân tại một quán cà phê và chờ phố lên đèn bên sông Hoài.</p><p><strong>Lưu ý:</strong> nên mua vé tham quan khu phố cổ tại quầy chính thức.</p>',
             'SYSTEM',
             CURRENT_TIMESTAMP - INTERVAL '16 days'
         ),
@@ -574,7 +578,8 @@ FROM (
             'traveler@example.com',
             'phong-nha-ke-bang',
             'Lần đầu khám phá Phong Nha',
-            'Hành trình trong hang rất ấn tượng. Hãy chuẩn bị giày bám tốt và túi chống nước.',
+            'Những chuẩn bị cần thiết cho chuyến khám phá hang động đầu tiên tại Phong Nha.',
+            '<p>Phong Nha mang đến một hành trình hang động ấn tượng nhưng đòi hỏi sự chuẩn bị phù hợp.</p><h2>Đồ dùng cần mang</h2><ul><li>Giày có độ bám tốt.</li><li>Túi chống nước cho điện thoại.</li><li>Quần áo nhẹ và nhanh khô.</li></ul><h2>An toàn trong hành trình</h2><p>Luôn đi cùng hướng dẫn viên và tuân thủ giới hạn của từng tuyến tham quan.</p>',
             'USER',
             CURRENT_TIMESTAMP - INTERVAL '12 days'
         ),
@@ -583,7 +588,8 @@ FROM (
             'foodie@example.com',
             'da-lat',
             'Ăn gì trong một cuối tuần ở Đà Lạt',
-            'Bánh căn buổi sáng, rau củ địa phương buổi trưa và một ly sữa đậu nành nóng vào buổi tối.',
+            'Thực đơn cuối tuần từ bánh căn buổi sáng đến sữa đậu nành nóng buổi tối.',
+            '<p>Một cuối tuần ở Đà Lạt sẽ trọn vẹn hơn khi mỗi buổi trong ngày gắn với một món ăn đặc trưng.</p><h2>Bữa sáng</h2><p>Bắt đầu bằng bánh căn nóng, dùng cùng nước chấm và xíu mại.</p><h2>Bữa trưa và buổi tối</h2><p>Ưu tiên rau củ địa phương vào bữa trưa, sau đó kết thúc ngày bằng một ly sữa đậu nành nóng.</p><p>Chọn quán đông khách địa phương và hỏi giá trước khi gọi món.</p>',
             'USER',
             CURRENT_TIMESTAMP - INTERVAL '8 days'
         ),
@@ -592,7 +598,8 @@ FROM (
             'traveler@example.com',
             'phu-quoc',
             'Lịch trình ba ngày ở Phú Quốc',
-            'Kết hợp một ngày tham quan phía bắc đảo, một ngày đi biển và một ngày khám phá làng chài.',
+            'Lịch trình cân bằng giữa phía bắc đảo, bãi biển và làng chài Phú Quốc.',
+            '<p>Ba ngày là khoảng thời gian vừa đủ để kết hợp thiên nhiên, biển và đời sống địa phương ở Phú Quốc.</p><h2>Ngày 1: phía bắc đảo</h2><p>Khám phá rừng và các điểm tham quan ở phía bắc.</p><h2>Ngày 2: biển</h2><p>Dành trọn ngày cho bãi biển, lặn ngắm san hô hoặc nghỉ ngơi.</p><h2>Ngày 3: làng chài</h2><p>Ghé làng chài vào buổi sáng và thưởng thức hải sản trước khi trở về.</p>',
             'USER',
             CURRENT_TIMESTAMP - INTERVAL '4 days'
         ),
@@ -601,7 +608,8 @@ FROM (
             'editor@example.com',
             'dai-noi-hue',
             'Những lưu ý khi tham quan Đại Nội Huế',
-            'Trang phục lịch sự, mang theo nước và dành buổi sáng để tránh nắng khi đi qua các khu điện.',
+            'Cách chọn thời gian, trang phục và lộ trình phù hợp khi tham quan Đại Nội Huế.',
+            '<p>Đại Nội Huế có khuôn viên rộng, vì vậy một kế hoạch đơn giản sẽ giúp chuyến tham quan thoải mái hơn.</p><h2>Thời gian phù hợp</h2><p>Nên bắt đầu vào buổi sáng để tránh nắng khi đi qua các sân và khu điện.</p><h2>Trang phục và vật dụng</h2><ul><li>Mặc trang phục lịch sự.</li><li>Mang theo nước uống.</li><li>Chuẩn bị mũ hoặc ô nhỏ.</li></ul><p>Luôn tuân thủ biển hướng dẫn tại các khu vực bảo tồn.</p>',
             'SYSTEM',
             CURRENT_TIMESTAMP - INTERVAL '2 days'
         )
@@ -610,6 +618,7 @@ FROM (
     "authorEmail",
     "placeSlug",
     "title",
+    "description",
     "content",
     "source",
     "createdAt"
@@ -623,6 +632,7 @@ SET
     "authorId" = EXCLUDED."authorId",
     "placeId" = EXCLUDED."placeId",
     "title" = EXCLUDED."title",
+    "description" = EXCLUDED."description",
     "content" = EXCLUDED."content",
     "source" = EXCLUDED."source",
     "status" = EXCLUDED."status",

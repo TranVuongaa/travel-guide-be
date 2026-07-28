@@ -28,7 +28,8 @@ const post: PostWithRelations = {
   authorId: USER_ID,
   placeId: PLACE_ID,
   title: 'A trip',
-  content: 'A detailed trip report.',
+  description: 'A short trip summary.',
+  content: '<p>A detailed trip report.</p>',
   source: PostSource.USER,
   status: ContentStatus.PUBLISHED,
   deletedAt: null,
@@ -148,17 +149,60 @@ describe('PostsService', () => {
 
     await service.create(user, {
       title: post.title,
+      description: post.description,
       content: post.content,
       placeId: PLACE_ID,
       publicationIntent: PublicationIntent.SUBMIT,
     });
 
     const createCalls = prisma.post.create.mock.calls as unknown as [
-      [{ data: { source: PostSource; status: ContentStatus } }],
+      [
+        {
+          data: {
+            description: string;
+            content: string;
+            source: PostSource;
+            status: ContentStatus;
+          };
+        },
+      ],
     ];
     const createArgs = createCalls[0][0];
+    expect(createArgs.data.description).toBe(post.description);
+    expect(createArgs.data.content).toBe(post.content);
     expect(createArgs.data.source).toBe(PostSource.USER);
     expect(createArgs.data.status).toBe(ContentStatus.PENDING);
+  });
+
+  it('should sanitize HTML content before creating a post', async () => {
+    prisma.post.create.mockResolvedValue(post);
+
+    await service.create(user, {
+      title: post.title,
+      description: post.description,
+      content:
+        '<p onclick="alert(1)">Safe article</p><script>alert(1)</script>',
+      publicationIntent: PublicationIntent.DRAFT,
+    });
+
+    const createCalls = prisma.post.create.mock.calls as unknown as [
+      [{ data: { content: string } }],
+    ];
+    expect(createCalls[0][0].data.content).toBe('<p>Safe article</p>');
+  });
+
+  it('should reject a post without meaningful visible content', async () => {
+    await expect(
+      service.create(user, {
+        title: post.title,
+        description: post.description,
+        content:
+          '<script>alert(1)</script><img src="https://example.com/a.jpg">',
+        publicationIntent: PublicationIntent.DRAFT,
+      }),
+    ).rejects.toThrow('Post content must contain meaningful visible text');
+
+    expect(prisma.post.create).not.toHaveBeenCalled();
   });
 
   it('should reject an update from a non-author', async () => {
@@ -186,6 +230,39 @@ describe('PostsService', () => {
       [{ data: { status: ContentStatus } }],
     ];
     expect(updateCalls[0][0].data.status).toBe(ContentStatus.PENDING);
+  });
+
+  it('should sanitize an updated article without changing omitted fields', async () => {
+    prisma.post.findFirst.mockResolvedValue(post);
+    prisma.post.update.mockResolvedValue({
+      ...post,
+      content: '<h2>Changed</h2><p>Safe text</p>',
+      status: ContentStatus.PENDING,
+    });
+
+    await service.update(user, POST_ID, {
+      content:
+        '<h2 style="color:red">Changed</h2><p>Safe text</p><iframe src="https://example.com"></iframe>',
+    });
+
+    const updateCalls = prisma.post.update.mock.calls as unknown as [
+      [
+        {
+          data: {
+            description?: string;
+            content: string;
+            status: ContentStatus;
+          };
+        },
+      ],
+    ];
+    expect(updateCalls[0][0].data).toEqual(
+      expect.objectContaining({
+        description: undefined,
+        content: '<h2>Changed</h2><p>Safe text</p>',
+        status: ContentStatus.PENDING,
+      }),
+    );
   });
 
   it('should allow an administrator to soft-delete another author post', async () => {

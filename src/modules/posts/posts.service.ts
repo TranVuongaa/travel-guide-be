@@ -28,6 +28,7 @@ import {
   postWithRelationsInclude,
   PostWithRelations,
 } from './interfaces/post-with-relations.interface';
+import { sanitizePostContent } from './post-content-sanitizer';
 
 @Injectable()
 export class PostsService {
@@ -106,7 +107,8 @@ export class PostsService {
         authorId: user.id,
         placeId: dto.placeId,
         title: dto.title,
-        content: dto.content,
+        description: dto.description,
+        content: sanitizePostContent(dto.content),
         source: this.getSource(user.role),
         status: this.getStatus(user.role, dto.publicationIntent),
       },
@@ -136,6 +138,7 @@ export class PostsService {
     } else if (
       current.status === ContentStatus.PUBLISHED &&
       (dto.title !== undefined ||
+        dto.description !== undefined ||
         dto.content !== undefined ||
         dto.placeId !== undefined)
     ) {
@@ -146,7 +149,11 @@ export class PostsService {
       where: { id },
       data: {
         title: dto.title,
-        content: dto.content,
+        description: dto.description,
+        content:
+          dto.content === undefined
+            ? undefined
+            : sanitizePostContent(dto.content),
         placeId: dto.placeId,
         status,
       },
@@ -254,6 +261,7 @@ export class PostsService {
   private ensureUpdateHasValues(dto: UpdatePostDto): void {
     if (
       dto.title === undefined &&
+      dto.description === undefined &&
       dto.content === undefined &&
       dto.placeId === undefined &&
       dto.publicationIntent === undefined

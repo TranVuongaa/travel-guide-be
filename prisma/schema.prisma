@@ -196,19 +196,20 @@ model EntityImage {
 }
 
 model Post {
-  id         String        @id @default(uuid())
-  authorId   String
-  author     User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  placeId    String?
-  place      Place?        @relation(fields: [placeId], references: [id], onDelete: Restrict)
-  title      String
-  content    String
-  searchText String        @default(dbgenerated()) @map("search_text")
-  source     PostSource    @default(USER)
-  status     ContentStatus @default(PENDING)
-  deletedAt  DateTime?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id          String        @id @default(uuid())
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  placeId     String?
+  place       Place?        @relation(fields: [placeId], references: [id], onDelete: Restrict)
+  title       String
+  description String
+  content     String
+  searchText  String        @default(dbgenerated()) @map("search_text")
+  source      PostSource    @default(USER)
+  status      ContentStatus @default(PENDING)
+  deletedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   @@index([status, deletedAt, createdAt, id])
   @@index([authorId, deletedAt, createdAt, id])

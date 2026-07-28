@@ -21,7 +21,12 @@ export class PostResponseDto {
   @ApiProperty()
   title: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Short plain-text summary used in article previews',
+  })
+  description: string;
+
+  @ApiProperty({ description: 'Complete sanitized HTML article body' })
   content: string;
 
   @ApiProperty({ enum: PostSource })

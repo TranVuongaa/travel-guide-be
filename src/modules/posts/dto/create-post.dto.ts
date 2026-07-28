@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
 } from 'class-validator';
 
@@ -26,11 +27,30 @@ export class CreatePostDto {
   @MaxLength(200)
   title: string;
 
-  @ApiProperty({ maxLength: 20000 })
+  @ApiProperty({
+    description: 'Short plain-text summary used in article previews',
+    example: 'A practical two-day itinerary for exploring Ha Long Bay.',
+    maxLength: 500,
+  })
   @Transform(({ value }: { value: unknown }) => trim(value))
   @IsString()
   @IsNotEmpty()
-  @MaxLength(20000)
+  @Matches(/^[^<>]*$/u, {
+    message: 'description must be plain text without HTML tags',
+  })
+  @MaxLength(500)
+  description: string;
+
+  @ApiProperty({
+    description: 'Complete article body as sanitized HTML',
+    example:
+      '<p>Spend the first morning cruising between the limestone islands.</p>',
+    maxLength: 100000,
+  })
+  @Transform(({ value }: { value: unknown }) => trim(value))
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100000)
   content: string;
 
   @ApiPropertyOptional({ format: 'uuid' })

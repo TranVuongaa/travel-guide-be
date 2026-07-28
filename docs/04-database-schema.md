@@ -165,7 +165,8 @@ model Post {
   placeId     String?
   place       Place?        @relation(fields: [placeId], references: [id])
   title       String
-  content     String
+  description String        // Plain-text summary, max 500 characters at DTO level
+  content     String        // Sanitized HTML article body
   source      PostSource    @default(USER)
   status      ContentStatus @default(PENDING)
   createdAt   DateTime      @default(now())
@@ -356,16 +357,18 @@ model Report {
 The existing `search` query parameters for Users, Provinces, Categories, Places, and Posts use an
 internal stored generated column named `search_text`:
 
-| Table        | Source columns included in `search_text` |
-| ------------ | ---------------------------------------- |
-| `users`      | `email`, `displayName`                   |
-| `provinces`  | `name`, `slug`                           |
-| `categories` | `name`, `slug`                           |
-| `places`     | `name`, `description`, `address`         |
-| `posts`      | `title`, `content`                       |
+| Table        | Source columns included in `search_text`                 |
+| ------------ | -------------------------------------------------------- |
+| `users`      | `email`, `displayName`                                   |
+| `provinces`  | `name`, `slug`                                           |
+| `categories` | `name`, `slug`                                           |
+| `places`     | `name`, `description`, `address`                         |
+| `posts`      | `title`, `description`, visible text from HTML `content` |
 
 - Migration `20260728030000_vietnamese_accent_insensitive_search` enables PostgreSQL `unaccent`
   and `pg_trgm`, and defines the schema-qualified immutable `normalize_search_text(text)` helper.
+  Migration `20260728040000_post_description_html_content` extends the Post source expression
+  with `description` and strips HTML tags from `content` before normalization.
 - Normalization lowercases text, removes Vietnamese accents, maps `đ`/`Đ` to `d`/`D`, converts
   punctuation/separators to single spaces, and trims the result.
 - Each `search_text` column is `GENERATED ALWAYS ... STORED`, so existing rows are backfilled by

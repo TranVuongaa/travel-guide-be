@@ -29,7 +29,7 @@ export class QueryPostDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description:
-      'Case-insensitive and Vietnamese-accent-insensitive title/content search',
+      'Case-insensitive and Vietnamese-accent-insensitive title, description, or visible article text search',
     example: 'co do hue',
     maxLength: 200,
   })

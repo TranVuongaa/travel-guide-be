@@ -19,6 +19,7 @@ import { configureApp } from '../src/configure-app';
 import { PrismaService } from '../src/database/prisma.service';
 import { CommentsService } from '../src/modules/comments/comments.service';
 import { PostsService } from '../src/modules/posts/posts.service';
+import { sanitizePostContent } from '../src/modules/posts/post-content-sanitizer';
 import { ReactionMutationOutcome } from '../src/modules/reactions/dto/reaction-response.dto';
 import { ReactionsService } from '../src/modules/reactions/reactions.service';
 import { ReviewsService } from '../src/modules/reviews/reviews.service';
@@ -28,12 +29,26 @@ type SupertestApp = Parameters<typeof request>[0];
 
 interface ListBody {
   success: true;
-  data: { items: Array<{ id: string }> };
+  data: {
+    items: Array<{ id: string; description: string; content: string }>;
+  };
   meta: { requestId: string };
 }
 
 interface ErrorBody {
   error: { code: string };
+}
+
+interface PostBody {
+  data: {
+    description: string;
+    content: string;
+  };
+}
+
+interface OpenApiObjectSchema {
+  required?: string[];
+  properties?: Record<string, { maxLength?: number }>;
 }
 
 interface ReactionSummaryBody {
@@ -76,7 +91,8 @@ const post = {
   authorId: USER_ID,
   placeId: PLACE_ID,
   title: 'Hue guide',
-  content: 'A guide to Hue.',
+  description: 'A short guide to Hue.',
+  content: '<p>A guide to Hue.</p>',
   source: PostSource.USER,
   status: ContentStatus.PUBLISHED,
   deletedAt: null,
@@ -142,13 +158,36 @@ describe('Content and engagement API (e2e)', () => {
       totalPages: 1,
     }),
     findOneOrFail: jest.fn().mockResolvedValue(post),
-    create: jest.fn().mockResolvedValue(post),
-    update: jest.fn((user: { id: string }) => {
-      if (user.id !== USER_ID) {
-        throw new ForbiddenDomainException();
-      }
-      return post;
-    }),
+    create: jest.fn(
+      (
+        _user: { id: string },
+        dto: { title: string; description: string; content: string },
+      ) => ({
+        ...post,
+        title: dto.title,
+        description: dto.description,
+        content: sanitizePostContent(dto.content),
+      }),
+    ),
+    update: jest.fn(
+      (
+        user: { id: string },
+        _id: string,
+        dto: { description?: string; content?: string },
+      ) => {
+        if (user.id !== USER_ID) {
+          throw new ForbiddenDomainException();
+        }
+        return {
+          ...post,
+          description: dto.description ?? post.description,
+          content:
+            dto.content === undefined
+              ? post.content
+              : sanitizePostContent(dto.content),
+        };
+      },
+    ),
     remove: jest.fn().mockResolvedValue({ ...post, deletedAt: now }),
   };
   const reviewsService = {
@@ -306,6 +345,24 @@ describe('Content and engagement API (e2e)', () => {
         '/api/v1/reactions/summary',
       ]),
     );
+    const createPostSchema = document.components?.schemas
+      ?.CreatePostDto as unknown as OpenApiObjectSchema;
+    const postResponseSchema = document.components?.schemas
+      ?.PostResponseDto as unknown as OpenApiObjectSchema;
+
+    expect(createPostSchema.required).toEqual(
+      expect.arrayContaining([
+        'title',
+        'description',
+        'content',
+        'publicationIntent',
+      ]),
+    );
+    expect(createPostSchema.properties?.description?.maxLength).toBe(500);
+    expect(createPostSchema.properties?.content?.maxLength).toBe(100000);
+    expect(postResponseSchema.required).toEqual(
+      expect.arrayContaining(['description', 'content']),
+    );
   });
 
   it('should expose paginated public posts with the standard envelope', async () => {
@@ -318,6 +375,8 @@ describe('Content and engagement API (e2e)', () => {
     const body = response.body as unknown as ListBody;
     expect(body.success).toBe(true);
     expect(body.data.items[0].id).toBe(POST_ID);
+    expect(body.data.items[0].description).toBe(post.description);
+    expect(body.data.items[0].content).toBe(post.content);
     expect(typeof body.meta.requestId).toBe('string');
     expect(postsService.findAll).toHaveBeenCalledWith(
       expect.objectContaining({ placeId: PLACE_ID, search: 'CO DO HUE' }),
@@ -373,7 +432,8 @@ describe('Content and engagement API (e2e)', () => {
       .set('authorization', `Bearer ${userToken}`)
       .send({
         title: ' Hue guide ',
-        content: ' A guide to Hue. ',
+        description: ' A short guide to Hue. ',
+        content: ' <p>A guide to Hue.</p> ',
         placeId: PLACE_ID,
         publicationIntent: 'SUBMIT',
       })
@@ -383,10 +443,53 @@ describe('Content and engagement API (e2e)', () => {
       expect.objectContaining({ id: USER_ID, role: Role.USER }),
       expect.objectContaining({
         title: 'Hue guide',
-        content: 'A guide to Hue.',
+        description: 'A short guide to Hue.',
+        content: '<p>A guide to Hue.</p>',
         placeId: PLACE_ID,
       }),
     );
+  });
+
+  it('should return sanitized HTML and reject content without visible text', async () => {
+    const server = app.getHttpServer() as unknown as SupertestApp;
+    const created = await request(server)
+      .post('/api/v1/posts')
+      .set('authorization', `Bearer ${userToken}`)
+      .send({
+        title: 'Safe article',
+        description: 'A safe article summary.',
+        content:
+          '<h2 onclick="alert(1)">Plan</h2><p>Visible text</p><script>alert(1)</script>',
+        publicationIntent: 'DRAFT',
+      })
+      .expect(201);
+
+    const createdBody = created.body as unknown as PostBody;
+    expect(createdBody.data.description).toBe('A safe article summary.');
+    expect(createdBody.data.content).toBe('<h2>Plan</h2><p>Visible text</p>');
+
+    await request(server)
+      .post('/api/v1/posts')
+      .set('authorization', `Bearer ${userToken}`)
+      .send({
+        title: 'Empty article',
+        description: 'An invalid article summary.',
+        content:
+          '<script>alert(1)</script><img src="https://example.com/a.jpg">',
+        publicationIntent: 'DRAFT',
+      })
+      .expect(400);
+
+    await request(server)
+      .post('/api/v1/posts')
+      .set('authorization', `Bearer ${userToken}`)
+      .send({
+        title: 'Invalid description',
+        description: '<strong>HTML is not allowed here</strong>',
+        content: '<p>Valid article content.</p>',
+        publicationIntent: 'DRAFT',
+      })
+      .expect(400);
   });
 
   it('should return a domain forbidden response for a non-author update', async () => {
