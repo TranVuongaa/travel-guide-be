@@ -1,7 +1,7 @@
 ---
 id: 006
 title: Full database SQL seed with administrator account
-status: DRAFT
+status: IMPLEMENTED
 module: database, identity, places, content
 created_at: 2026-07-28
 updated_at: 2026-07-28
@@ -176,28 +176,27 @@ No DTO changes.
 - [x] No technical question is blocking. Approval confirms the development credentials, inclusion
       of safe synthetic rows for token/OAuth tables, additive idempotent behavior, and the exact
       current-schema scope described above.
-- [ ] Workflow approval is still required. Reply `APPROVE` to change this file to `APPROVED` and
-      authorize implementation.
+- [x] User explicitly approved implementation on 2026-07-28.
 
 ## 6. Acceptance Criteria Checklist
 
-- [ ] `prisma/seed-all.sql` supplies coherent fixture data for every current application table.
-- [ ] The seeded `admin@example.com` account is active, has role `ADMIN`, and its Argon2id hash
+- [x] `prisma/seed-all.sql` supplies coherent fixture data for every current application table.
+- [x] The seeded `admin@example.com` account is active, has role `ADMIN`, and its Argon2id hash
       verifies against `Admin@123456` through the same Argon2 library/configuration used by the
       application.
-- [ ] All real foreign keys, unique constraints, enum values, self-relations, and intended
+- [x] All real foreign keys, unique constraints, enum values, self-relations, and intended
       polymorphic relationships are valid.
-- [ ] Seeded Place rating aggregates match published, non-deleted seeded Reviews.
-- [ ] The script is non-destructive, transaction-protected, and repeatable without duplicate
+- [x] Seeded Place rating aggregates match published, non-deleted seeded Reviews.
+- [x] The script is non-destructive, transaction-protected, and repeatable without duplicate
       fixture rows.
-- [ ] The SQL contains clear development-only credential and execution warnings.
-- [ ] The SQL syntax is checked against the latest Prisma schema and migrations.
-- [ ] When PostgreSQL is locally available, two consecutive executions succeed and verification
+- [x] The SQL contains clear development-only credential and execution warnings.
+- [x] The SQL syntax is checked against the latest Prisma schema and migrations.
+- [x] When PostgreSQL is locally available, two consecutive executions succeed and verification
       queries confirm stable row counts; otherwise the unavailable runtime check is clearly
       reported.
-- [ ] Existing lint/build/unit/e2e behavior is unaffected because no application contract changes.
-- [ ] `git diff --check` passes for the new file and this prompt.
-- [ ] After verification, this prompt's status becomes `IMPLEMENTED` and its Status Log lists all
+- [x] Existing lint/build/unit/e2e behavior is unaffected because no application contract changes.
+- [x] `git diff --check` passes for the new file and this prompt.
+- [x] After verification, this prompt's status becomes `IMPLEMENTED` and its Status Log lists all
       created/modified files.
 
 ## 7. Status Log
@@ -205,3 +204,5 @@ No DTO changes.
 | Date       | Status | Notes |
 | ---------- | ------ | ----- |
 | 2026-07-28 | DRAFT  | Agent created the draft after reviewing docs `00`–`05`, the current Prisma schema, all checked-in migrations, existing reference seed, administrator bootstrap script, prompt sequence, and dirty worktree |
+| 2026-07-28 | APPROVED | User explicitly approved implementation |
+| 2026-07-28 | IMPLEMENTED | Added `prisma/seed-all.sql`; validated Prisma schema and admin Argon2id hash; applied all migrations to an isolated PostgreSQL 16 cluster; executed the SQL twice with stable counts and all in-script integrity checks passing; modified only this prompt and the new SQL file |
