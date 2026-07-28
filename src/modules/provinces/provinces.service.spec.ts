@@ -7,6 +7,7 @@ import {
   ProvinceInUseException,
   ReferenceNameRequiredException,
 } from '../../common/exceptions/reference-data.exceptions';
+import { orderedEntityImages } from '../../common/utils/entity-image-query.util';
 import { PrismaService } from '../../database/prisma.service';
 import { QueryProvinceDto } from './dto/query-province.dto';
 import { ProvincesService } from './provinces.service';
@@ -16,6 +17,7 @@ const province = {
   id: PROVINCE_ID,
   name: 'Quảng Ninh',
   slug: 'quang-ninh',
+  images: [],
 };
 
 interface PrismaMock {
@@ -87,6 +89,7 @@ describe('ProvincesService', () => {
       skip: 10,
       take: 10,
       orderBy: [{ name: SortOrder.DESC }, { id: SortOrder.ASC }],
+      include: { images: orderedEntityImages },
     });
   });
 
@@ -113,6 +116,7 @@ describe('ProvincesService', () => {
     );
     expect(prisma.province.create).toHaveBeenCalledWith({
       data: { name: 'Quảng Ninh', slug: 'quang-ninh' },
+      include: { images: orderedEntityImages },
     });
   });
 
@@ -150,6 +154,7 @@ describe('ProvincesService', () => {
     expect(prisma.province.update).toHaveBeenCalledWith({
       where: { id: PROVINCE_ID },
       data: { name: 'Hồ Chí Minh', slug: 'ho-chi-minh' },
+      include: { images: orderedEntityImages },
     });
   });
 

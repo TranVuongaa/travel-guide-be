@@ -8,6 +8,7 @@ import {
   ReferenceNameRequiredException,
 } from '../../common/exceptions/reference-data.exceptions';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
+import { orderedEntityImages } from '../../common/utils/entity-image-query.util';
 import { toSlug } from '../../common/utils/slug.util';
 import { PrismaService } from '../../database/prisma.service';
 import { CategoryResponseDto } from './dto/category-response.dto';
@@ -46,6 +47,7 @@ export class CategoriesService {
         skip: (query.page - 1) * query.limit,
         take: query.limit,
         orderBy: [{ name: query.sortOrder }, { id: SortOrder.ASC }],
+        include: { images: orderedEntityImages },
       }),
       this.prisma.category.count({ where }),
     ]);
@@ -60,7 +62,10 @@ export class CategoriesService {
   }
 
   async findOneOrFail(id: string): Promise<CategoryResponseDto> {
-    const category = await this.prisma.category.findUnique({ where: { id } });
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: { images: orderedEntityImages },
+    });
 
     if (!category) {
       throw new CategoryNotFoundException(id, HttpStatus.NOT_FOUND);
@@ -77,6 +82,7 @@ export class CategoriesService {
     try {
       return await this.prisma.category.create({
         data: { name, slug },
+        include: { images: orderedEntityImages },
       });
     } catch (error) {
       if (this.isPrismaError(error, 'P2002')) {
@@ -103,6 +109,7 @@ export class CategoriesService {
       return await this.prisma.category.update({
         where: { id },
         data: { name, slug },
+        include: { images: orderedEntityImages },
       });
     } catch (error) {
       if (this.isPrismaError(error, 'P2002')) {
@@ -119,7 +126,10 @@ export class CategoriesService {
     await this.findOneOrFail(id);
 
     try {
-      return await this.prisma.category.delete({ where: { id } });
+      return await this.prisma.category.delete({
+        where: { id },
+        include: { images: orderedEntityImages },
+      });
     } catch (error) {
       if (this.isPrismaError(error, 'P2025')) {
         throw new CategoryNotFoundException(id, HttpStatus.NOT_FOUND);

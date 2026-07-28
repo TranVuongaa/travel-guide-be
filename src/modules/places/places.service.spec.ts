@@ -32,6 +32,7 @@ const place: PlaceWithRelations = {
   createdById: USER_ID,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+  images: [],
   province: {
     id: PROVINCE_ID,
     name: 'Quang Ninh',

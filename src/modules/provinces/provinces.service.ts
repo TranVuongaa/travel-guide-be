@@ -9,6 +9,7 @@ import {
   ReferenceNameRequiredException,
 } from '../../common/exceptions/reference-data.exceptions';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
+import { orderedEntityImages } from '../../common/utils/entity-image-query.util';
 import { toSlug } from '../../common/utils/slug.util';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateProvinceDto } from './dto/create-province.dto';
@@ -47,6 +48,7 @@ export class ProvincesService {
         skip: (query.page - 1) * query.limit,
         take: query.limit,
         orderBy: [{ name: query.sortOrder }, { id: SortOrder.ASC }],
+        include: { images: orderedEntityImages },
       }),
       this.prisma.province.count({ where }),
     ]);
@@ -61,7 +63,10 @@ export class ProvincesService {
   }
 
   async findOneOrFail(id: string): Promise<ProvinceResponseDto> {
-    const province = await this.prisma.province.findUnique({ where: { id } });
+    const province = await this.prisma.province.findUnique({
+      where: { id },
+      include: { images: orderedEntityImages },
+    });
 
     if (!province) {
       throw new ProvinceNotFoundException(id, HttpStatus.NOT_FOUND);
@@ -78,6 +83,7 @@ export class ProvincesService {
     try {
       return await this.prisma.province.create({
         data: { name, slug },
+        include: { images: orderedEntityImages },
       });
     } catch (error) {
       if (this.isPrismaError(error, 'P2002')) {
@@ -104,6 +110,7 @@ export class ProvincesService {
       return await this.prisma.province.update({
         where: { id },
         data: { name, slug },
+        include: { images: orderedEntityImages },
       });
     } catch (error) {
       if (this.isPrismaError(error, 'P2002')) {
@@ -134,7 +141,10 @@ export class ProvincesService {
     }
 
     try {
-      return await this.prisma.province.delete({ where: { id } });
+      return await this.prisma.province.delete({
+        where: { id },
+        include: { images: orderedEntityImages },
+      });
     } catch (error) {
       if (this.isPrismaError(error, 'P2003')) {
         throw new ProvinceInUseException(id);

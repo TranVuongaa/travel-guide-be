@@ -104,10 +104,11 @@ model OAuthAccount {
 }
 
 model Province {
-  id     String  @id @default(uuid())
-  name   String  @unique
-  slug   String  @unique
+  id     String        @id @default(uuid())
+  name   String        @unique
+  slug   String        @unique
   places Place[]
+  images EntityImage[]
 
   @@map("provinces")
 }
@@ -117,6 +118,7 @@ model Category {
   name   String          @unique
   slug   String          @unique
   places PlaceCategory[]
+  images EntityImage[]
 
   @@map("categories")
 }
@@ -141,6 +143,7 @@ model Place {
   categories  PlaceCategory[]
   posts       Post[]
   reviews     Review[]
+  images      EntityImage[]
 
   @@index([provinceId])
   @@index([status, createdAt, id])
@@ -156,6 +159,32 @@ model PlaceCategory {
   @@id([placeId, categoryId])
   @@index([categoryId, placeId])
   @@map("place_categories")
+}
+
+model EntityImage {
+  id            String    @id @default(uuid())
+  url           String
+  sourcePageUrl String
+  altText       String
+  author        String?
+  licenseName   String
+  licenseUrl    String?
+  width         Int?
+  height        Int?
+  sortOrder     Int       @default(0)
+  provinceId    String?
+  province      Province? @relation(fields: [provinceId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  placeId       String?
+  place         Place?    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([provinceId, sortOrder])
+  @@unique([categoryId, sortOrder])
+  @@unique([placeId, sortOrder])
+  @@map("entity_images")
 }
 
 model Post {

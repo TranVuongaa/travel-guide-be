@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ContentStatus } from '@prisma/client';
 
+import { EntityImageResponseDto } from '../../../common/dto/entity-image-response.dto';
 import { ResponseMetaDto } from '../../../common/dto/response-meta.dto';
 
 export class ProvinceResponseDto {
@@ -73,6 +74,9 @@ export class PlaceResponseDto {
 
   @ApiProperty({ type: [CategoryResponseDto] })
   categories: CategoryResponseDto[];
+
+  @ApiProperty({ type: [EntityImageResponseDto] })
+  images: EntityImageResponseDto[];
 }
 
 export class PaginatedPlacesResponseDto {

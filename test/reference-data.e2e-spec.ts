@@ -32,7 +32,12 @@ interface ErrorResponseBody {
 interface ListResponseBody {
   success: true;
   data: {
-    items: Array<{ id: string; name: string; slug: string }>;
+    items: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      images: Array<{ url: string; sortOrder: number }>;
+    }>;
     page: number;
     limit: number;
     totalItems: number;
@@ -46,16 +51,30 @@ const PROVINCE_ID = '33333333-3333-4333-8333-333333333333';
 const IN_USE_PROVINCE_ID = '44444444-4444-4444-8444-444444444444';
 const MISSING_PROVINCE_ID = '55555555-5555-4555-8555-555555555555';
 const CATEGORY_ID = '66666666-6666-4666-8666-666666666666';
+const image = {
+  id: '77777777-7777-4777-8777-777777777777',
+  url: 'https://upload.wikimedia.org/reference.jpg',
+  sourcePageUrl: 'https://commons.wikimedia.org/wiki/File:Reference.jpg',
+  altText: 'Reference image',
+  author: 'Author',
+  licenseName: 'CC BY 4.0',
+  licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+  width: 1600,
+  height: 900,
+  sortOrder: 0,
+};
 
 const province = {
   id: PROVINCE_ID,
   name: 'Quảng Ninh',
   slug: 'quang-ninh',
+  images: [image],
 };
 const category = {
   id: CATEGORY_ID,
   name: 'Biển & đảo',
   slug: 'bien-dao',
+  images: [image],
 };
 
 describe('Province and Category API (e2e)', () => {
@@ -230,6 +249,12 @@ describe('Province and Category API (e2e)', () => {
     expect((categories.body as ListResponseBody).data.items).toEqual([
       category,
     ]);
+    expect(
+      (provinces.body as ListResponseBody).data.items[0].images[0],
+    ).toEqual(expect.objectContaining({ url: image.url, sortOrder: 0 }));
+    expect(
+      (categories.body as ListResponseBody).data.items[0].images[0],
+    ).toEqual(expect.objectContaining({ url: image.url, sortOrder: 0 }));
     expect(provincesService.findAll).toHaveBeenCalledWith(
       expect.objectContaining({
         search: 'Quảng',

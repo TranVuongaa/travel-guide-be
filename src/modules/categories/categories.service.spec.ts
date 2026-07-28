@@ -6,6 +6,7 @@ import {
   CategoryAlreadyExistsException,
   ReferenceNameRequiredException,
 } from '../../common/exceptions/reference-data.exceptions';
+import { orderedEntityImages } from '../../common/utils/entity-image-query.util';
 import { PrismaService } from '../../database/prisma.service';
 import { CategoriesService } from './categories.service';
 import { QueryCategoryDto } from './dto/query-category.dto';
@@ -15,6 +16,7 @@ const category = {
   id: CATEGORY_ID,
   name: 'Biển & đảo',
   slug: 'bien-dao',
+  images: [],
 };
 
 interface PrismaMock {
@@ -86,6 +88,7 @@ describe('CategoriesService', () => {
       skip: 0,
       take: 5,
       orderBy: [{ name: SortOrder.ASC }, { id: SortOrder.ASC }],
+      include: { images: orderedEntityImages },
     });
   });
 
@@ -112,6 +115,7 @@ describe('CategoriesService', () => {
     );
     expect(prisma.category.create).toHaveBeenCalledWith({
       data: { name: 'Biển & đảo', slug: 'bien-dao' },
+      include: { images: orderedEntityImages },
     });
   });
 
@@ -149,6 +153,7 @@ describe('CategoriesService', () => {
     expect(prisma.category.update).toHaveBeenCalledWith({
       where: { id: CATEGORY_ID },
       data: { name: 'Di tích lịch sử', slug: 'di-tich-lich-su' },
+      include: { images: orderedEntityImages },
     });
   });
 
@@ -166,6 +171,7 @@ describe('CategoriesService', () => {
     await expect(service.remove(CATEGORY_ID)).resolves.toEqual(category);
     expect(prisma.category.delete).toHaveBeenCalledWith({
       where: { id: CATEGORY_ID },
+      include: { images: orderedEntityImages },
     });
   });
 

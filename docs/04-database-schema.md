@@ -52,6 +52,7 @@ model Province {
   name  String  @unique
   slug  String  @unique
   places Place[]
+  images EntityImage[]
 
   @@map("provinces")
 }
@@ -61,6 +62,7 @@ model Category {
   name  String @unique   // Beach, Mountain, Historical site, Food...
   slug  String @unique
   places PlaceCategory[]
+  images EntityImage[]
 
   @@map("categories")
 }
@@ -85,6 +87,7 @@ model Place {
   categories   PlaceCategory[]
   posts        Post[]
   reviews      Review[]
+  images       EntityImage[]
 
   @@index([provinceId])
   @@map("places")
@@ -100,6 +103,42 @@ model PlaceCategory {
   @@map("place_categories")
 }
 ```
+
+### 2.1 Province, Category, and Place images
+
+```prisma
+model EntityImage {
+  id            String    @id @default(uuid())
+  url           String
+  sourcePageUrl String
+  altText       String
+  author        String?
+  licenseName   String
+  licenseUrl    String?
+  width         Int?
+  height        Int?
+  sortOrder     Int       @default(0)
+  provinceId    String?
+  province      Province? @relation(fields: [provinceId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  placeId       String?
+  place         Place?    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([provinceId, sortOrder])
+  @@unique([categoryId, sortOrder])
+  @@unique([placeId, sortOrder])
+  @@map("entity_images")
+}
+```
+
+The migration adds a database `CHECK` requiring exactly one owner foreign key per image, positive
+dimensions when present, and a non-negative `sortOrder`. These constraints are expressed in SQL
+because Prisma schema syntax cannot represent the cross-column ownership rule. This model stores
+remote, system-curated image metadata; user-uploaded Post/Review media remains the separate
+`Media` domain described in section 7.
 
 ## 3. Content (Post)
 ```prisma

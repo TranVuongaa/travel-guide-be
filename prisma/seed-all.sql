@@ -360,6 +360,171 @@ JOIN "categories" AS category
     ON category."slug" = fixture."categorySlug"
 ON CONFLICT ("placeId", "categoryId") DO NOTHING;
 
+-- Representative Commons image fixtures. Run `npm run db:seed:images` after
+-- this SQL to resolve and upsert the complete 52-image curated manifest.
+INSERT INTO "entity_images" (
+    "id",
+    "url",
+    "sourcePageUrl",
+    "altText",
+    "author",
+    "licenseName",
+    "licenseUrl",
+    "width",
+    "height",
+    "sortOrder",
+    "provinceId",
+    "categoryId",
+    "placeId",
+    "createdAt",
+    "updatedAt"
+)
+SELECT
+    fixture."id",
+    fixture."url",
+    fixture."sourcePageUrl",
+    fixture."altText",
+    fixture."author",
+    fixture."licenseName",
+    fixture."licenseUrl",
+    fixture."width",
+    fixture."height",
+    0,
+    CASE WHEN fixture."ownerType" = 'province' THEN province."id" END,
+    CASE WHEN fixture."ownerType" = 'category' THEN category."id" END,
+    CASE WHEN fixture."ownerType" = 'place' THEN place."id" END,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+FROM (
+    VALUES
+        (
+            '80000000-0000-4000-8000-000000000001',
+            'province',
+            'quang-ninh',
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Ha_Long_Bay_in_2019.jpg/1920px-Ha_Long_Bay_in_2019.jpg',
+            'https://commons.wikimedia.org/wiki/File%3AHa_Long_Bay_in_2019.jpg',
+            'Limestone islands in Hạ Long Bay, Quảng Ninh',
+            'Taewangkorea',
+            'CC BY-SA 4.0',
+            'https://creativecommons.org/licenses/by-sa/4.0',
+            1600,
+            1122
+        ),
+        (
+            '80000000-0000-4000-8000-000000000002',
+            'category',
+            'bien-dao',
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Beautiful_beach_on_Phu_Quoc_island_Vietnam_%2839543775721%29.jpg/1920px-Beautiful_beach_on_Phu_Quoc_island_Vietnam_%2839543775721%29.jpg',
+            'https://commons.wikimedia.org/wiki/File%3ABeautiful_beach_on_Phu_Quoc_island_Vietnam_(39543775721).jpg',
+            'Tropical beach on Phú Quốc Island',
+            'dronepicr',
+            'CC BY 2.0',
+            'https://creativecommons.org/licenses/by/2.0',
+            1600,
+            1067
+        ),
+        (
+            '80000000-0000-4000-8000-000000000003',
+            'place',
+            'vinh-ha-long',
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Ha_Long_Bay_in_2019.jpg/1920px-Ha_Long_Bay_in_2019.jpg',
+            'https://commons.wikimedia.org/wiki/File%3AHa_Long_Bay_in_2019.jpg',
+            'Limestone islands in Hạ Long Bay',
+            'Taewangkorea',
+            'CC BY-SA 4.0',
+            'https://creativecommons.org/licenses/by-sa/4.0',
+            1600,
+            1122
+        ),
+        (
+            '80000000-0000-4000-8000-000000000004',
+            'place',
+            'pho-co-hoi-an',
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-06.jpg/1920px-H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-06.jpg',
+            'https://commons.wikimedia.org/wiki/File%3AH%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-06.jpg',
+            'Lantern-lit street in Hội An Ancient Town',
+            'Steffen Schmitz',
+            'CC BY-SA 4.0',
+            'https://creativecommons.org/licenses/by-sa/4.0',
+            1600,
+            1029
+        ),
+        (
+            '80000000-0000-4000-8000-000000000005',
+            'place',
+            'phong-nha-ke-bang',
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Phongnhakebang6.jpg/1920px-Phongnhakebang6.jpg',
+            'https://commons.wikimedia.org/wiki/File%3APhongnhakebang6.jpg',
+            'Karst landscape in Phong Nha–Kẻ Bàng National Park',
+            'Genghiskhanviet',
+            'Public domain',
+            NULL,
+            1600,
+            1200
+        ),
+        (
+            '80000000-0000-4000-8000-000000000006',
+            'place',
+            'da-lat',
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Xuan_Huong_Lake_11.jpg/1920px-Xuan_Huong_Lake_11.jpg',
+            'https://commons.wikimedia.org/wiki/File%3AXuan_Huong_Lake_11.jpg',
+            'Xuân Hương Lake in Đà Lạt',
+            'Diane Selwyn',
+            'CC BY-SA 3.0',
+            'https://creativecommons.org/licenses/by-sa/3.0',
+            1600,
+            1200
+        ),
+        (
+            '80000000-0000-4000-8000-000000000007',
+            'place',
+            'phu-quoc',
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Bai-sao-phu-quoc-tuonglamphotos.jpg/1920px-Bai-sao-phu-quoc-tuonglamphotos.jpg',
+            'https://commons.wikimedia.org/wiki/File%3ABai-sao-phu-quoc-tuonglamphotos.jpg',
+            'Sao Beach on Phú Quốc Island',
+            'Trantuonglam',
+            'CC BY-SA 4.0',
+            'https://creativecommons.org/licenses/by-sa/4.0',
+            1600,
+            900
+        ),
+        (
+            '80000000-0000-4000-8000-000000000008',
+            'place',
+            'dai-noi-hue',
+            'https://upload.wikimedia.org/wikipedia/commons/b/b9/%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg',
+            'https://commons.wikimedia.org/wiki/File%3A%C4%90%E1%BA%A1i_n%E1%BB%99i.jpg',
+            'Imperial City of Huế',
+            'NguyenThanhBac123',
+            'CC0',
+            'https://creativecommons.org/publicdomain/zero/1.0/deed.en',
+            900,
+            531
+        )
+) AS fixture (
+    "id",
+    "ownerType",
+    "ownerSlug",
+    "url",
+    "sourcePageUrl",
+    "altText",
+    "author",
+    "licenseName",
+    "licenseUrl",
+    "width",
+    "height"
+)
+LEFT JOIN "provinces" AS province
+    ON fixture."ownerType" = 'province'
+    AND province."slug" = fixture."ownerSlug"
+LEFT JOIN "categories" AS category
+    ON fixture."ownerType" = 'category'
+    AND category."slug" = fixture."ownerSlug"
+LEFT JOIN "places" AS place
+    ON fixture."ownerType" = 'place'
+    AND place."slug" = fixture."ownerSlug"
+ON CONFLICT DO NOTHING;
+
 -- Published Posts from system and user sources.
 INSERT INTO "posts" (
     "id",
@@ -960,6 +1125,7 @@ FROM (
         ('categories', (SELECT COUNT(*) FROM "categories")),
         ('places', (SELECT COUNT(*) FROM "places")),
         ('place_categories', (SELECT COUNT(*) FROM "place_categories")),
+        ('entity_images', (SELECT COUNT(*) FROM "entity_images")),
         ('posts', (SELECT COUNT(*) FROM "posts")),
         ('reviews', (SELECT COUNT(*) FROM "reviews")),
         ('comments', (SELECT COUNT(*) FROM "comments")),

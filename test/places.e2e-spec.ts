@@ -31,7 +31,11 @@ interface ErrorResponseBody {
 interface ListResponseBody {
   success: true;
   data: {
-    items: Array<{ id: string; name: string }>;
+    items: Array<{
+      id: string;
+      name: string;
+      images: Array<{ url: string; sortOrder: number }>;
+    }>;
     page: number;
     limit: number;
     totalItems: number;
@@ -46,6 +50,7 @@ interface ListResponseBody {
 interface DetailResponseBody {
   data: {
     id: string;
+    images: Array<{ url: string; sourcePageUrl: string; sortOrder: number }>;
   };
 }
 
@@ -56,6 +61,18 @@ const CATEGORY_ID = '33333333-3333-4333-8333-333333333333';
 const EDITOR_ID = '44444444-4444-4444-8444-444444444444';
 const ADMIN_ID = '55555555-5555-4555-8555-555555555555';
 const USER_ID = '66666666-6666-4666-8666-666666666666';
+const image = {
+  id: '77777777-7777-4777-8777-777777777777',
+  url: 'https://upload.wikimedia.org/place.jpg',
+  sourcePageUrl: 'https://commons.wikimedia.org/wiki/File:Place.jpg',
+  altText: 'Place image',
+  author: 'Author',
+  licenseName: 'CC BY 4.0',
+  licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+  width: 1600,
+  height: 900,
+  sortOrder: 0,
+};
 
 const place: PlaceResponseDto = {
   id: PLACE_ID,
@@ -84,6 +101,7 @@ const place: PlaceResponseDto = {
       slug: 'nature',
     },
   ],
+  images: [image],
 };
 
 describe('Places API (e2e)', () => {
@@ -213,7 +231,13 @@ describe('Places API (e2e)', () => {
 
     expect(body.success).toBe(true);
     expect(body.data).toEqual({
-      items: [expect.objectContaining({ id: PLACE_ID, name: 'Ha Long Bay' })],
+      items: [
+        expect.objectContaining({
+          id: PLACE_ID,
+          name: 'Ha Long Bay',
+          images: [expect.objectContaining({ url: image.url, sortOrder: 0 })],
+        }),
+      ],
       page: 1,
       limit: 1,
       totalItems: 1,
@@ -264,6 +288,13 @@ describe('Places API (e2e)', () => {
     const missingBody = missingResponse.body as unknown as ErrorResponseBody;
 
     expect(foundBody.data.id).toBe(PLACE_ID);
+    expect(foundBody.data.images[0]).toEqual(
+      expect.objectContaining({
+        url: image.url,
+        sourcePageUrl: image.sourcePageUrl,
+        sortOrder: 0,
+      }),
+    );
     expect(missingBody.error.code).toBe('PLACE_NOT_FOUND');
   });
 

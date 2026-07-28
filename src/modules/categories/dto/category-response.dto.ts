@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+import { EntityImageResponseDto } from '../../../common/dto/entity-image-response.dto';
 import { ResponseMetaDto } from '../../../common/dto/response-meta.dto';
 
 export class CategoryResponseDto {
@@ -11,6 +12,9 @@ export class CategoryResponseDto {
 
   @ApiProperty()
   slug: string;
+
+  @ApiProperty({ type: [EntityImageResponseDto] })
+  images: EntityImageResponseDto[];
 }
 
 export class PaginatedCategoriesResponseDto {

@@ -310,6 +310,7 @@ export class PlacesService {
       updatedAt: place.updatedAt,
       province: place.province,
       categories: place.categories.map(({ category }) => category),
+      images: place.images,
     };
   }
 }
