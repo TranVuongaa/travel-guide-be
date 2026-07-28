@@ -1,15 +1,18 @@
-FROM node:22-alpine
-
+# ---- Build stage ----
+FROM node:20-alpine AS builder
 WORKDIR /app
-
 COPY package*.json ./
 RUN npm ci
-
 COPY . .
-
-RUN npx prisma generate
 RUN npm run build
 
-EXPOSE 3000
+# ---- Production stage ----
+FROM node:20-alpine AS production
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=builder /app/dist ./dist
 
-CMD ["npm", "run", "start:prod"]
+EXPOSE 3000
+CMD ["node", "dist/main.js"]
