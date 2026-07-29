@@ -55,6 +55,16 @@ export default () => ({
     throttleTtlMs: parseInteger(process.env.CONTENT_THROTTLE_TTL_MS, 60000),
     throttleLimit: parseInteger(process.env.CONTENT_THROTTLE_LIMIT, 20),
   },
+  travelContentIngestion: {
+    oxylabsUsername: process.env.OXY_WSA_USERNAME,
+    oxylabsPassword: process.env.OXY_WSA_PASSWORD,
+    timeoutMs: parseInteger(process.env.OXY_WSA_TIMEOUT_MS, 120000),
+    throttleTtlMs: parseInteger(
+      process.env.TRAVEL_INGESTION_THROTTLE_TTL_MS,
+      300000,
+    ),
+    throttleLimit: parseInteger(process.env.TRAVEL_INGESTION_THROTTLE_LIMIT, 1),
+  },
   redis: {
     host: process.env.REDIS_HOST,
     port: parseInteger(process.env.REDIS_PORT, 6379),

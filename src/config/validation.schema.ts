@@ -36,10 +36,24 @@ export const validationSchema = Joi.object({
   REQUIRE_MODERATION: Joi.boolean().default(true),
   CONTENT_THROTTLE_TTL_MS: Joi.number().integer().min(1000).default(60000),
   CONTENT_THROTTLE_LIMIT: Joi.number().integer().min(1).default(20),
+  OXY_WSA_USERNAME: Joi.string().min(1).optional(),
+  OXY_WSA_PASSWORD: Joi.string().min(1).optional(),
+  OXY_WSA_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .max(150000)
+    .default(120000),
+  TRAVEL_INGESTION_THROTTLE_TTL_MS: Joi.number()
+    .integer()
+    .min(60000)
+    .default(300000),
+  TRAVEL_INGESTION_THROTTLE_LIMIT: Joi.number().integer().min(1).default(1),
   REDIS_HOST: Joi.string().hostname().default('localhost'),
   REDIS_PORT: Joi.number().port().default(6379),
   REDIS_PASSWORD: Joi.string().min(1).optional(),
   ADMIN_EMAIL: Joi.string().email().optional(),
   ADMIN_PASSWORD: Joi.string().min(8).max(128).optional(),
   ADMIN_DISPLAY_NAME: Joi.string().min(1).max(100).optional(),
-}).and('ADMIN_EMAIL', 'ADMIN_PASSWORD', 'ADMIN_DISPLAY_NAME');
+})
+  .and('ADMIN_EMAIL', 'ADMIN_PASSWORD', 'ADMIN_DISPLAY_NAME')
+  .and('OXY_WSA_USERNAME', 'OXY_WSA_PASSWORD');

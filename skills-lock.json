@@ -25,6 +25,12 @@
       "skillPath": "skills/document/SKILL.md",
       "computedHash": "afb19698d824c6cb58abebfc96cdb1779cfa80543883d22fdbbd95989f7c78c7"
     },
+    "oxylabs-web-scraper": {
+      "source": "oxylabs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-scraper-api/SKILL.md",
+      "computedHash": "2855d49b2347b4aec4aeae17eafafd69a795932f0154fa775da05e7c62073232"
+    },
     "test": {
       "source": "jsmastery-pro/skills",
       "sourceType": "github",

@@ -275,7 +275,19 @@ export class PostsService {
     metric?: TargetEngagement,
   ): PostResponseDto {
     return {
-      ...post,
+      id: post.id,
+      authorId: post.authorId,
+      placeId: post.placeId,
+      title: post.title,
+      description: post.description,
+      content: post.content,
+      source: post.source,
+      status: post.status,
+      deletedAt: post.deletedAt,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+      author: post.author,
+      place: post.place,
       commentCount: metric?.commentCount ?? 0,
       reactionCounts:
         metric?.reactionCounts ??

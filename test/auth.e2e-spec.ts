@@ -11,6 +11,7 @@ import { configureApp } from '../src/configure-app';
 import { PrismaService } from '../src/database/prisma.service';
 import { OAuthProvidersService } from '../src/modules/auth/providers/oauth-providers.service';
 import { PlacesService } from '../src/modules/places/places.service';
+import { TravelContentIngestionsService } from '../src/modules/travel-content-ingestions/travel-content-ingestions.service';
 
 type SupertestApp = Parameters<typeof request>[0];
 
@@ -375,6 +376,23 @@ describe('Auth and Users API (e2e)', () => {
       },
     ),
   };
+  const travelContentIngestions = {
+    createRun: jest.fn().mockImplementation((requestedById: string) => ({
+      id: '66666666-6666-4666-8666-666666666666',
+      requestedById,
+      status: 'QUEUED',
+      trendKeywordCount: 0,
+      discoveredUrlCount: 0,
+      importedPostCount: 0,
+      duplicateCount: 0,
+      skippedCount: 0,
+      failedCount: 0,
+      errorSummary: null,
+      createdAt: new Date(),
+      startedAt: null,
+      completedAt: null,
+    })),
+  };
 
   let localUserId: string;
   let localAccessToken: string;
@@ -392,6 +410,8 @@ describe('Auth and Users API (e2e)', () => {
       .useValue(oauthProviders)
       .overrideProvider(PlacesService)
       .useValue(placesService)
+      .overrideProvider(TravelContentIngestionsService)
+      .useValue(travelContentIngestions)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -417,6 +437,7 @@ describe('Auth and Users API (e2e)', () => {
         '/api/v1/users/me',
         '/api/v1/users/me/oauth/google',
         '/api/v1/users/{id}/role',
+        '/api/v1/admin/travel-content-ingestions',
       ]),
     );
   });
@@ -631,6 +652,35 @@ describe('Auth and Users API (e2e)', () => {
       localUserId,
       expect.any(Object),
     );
+  });
+
+  it('should restrict travel content ingestion to administrators', async () => {
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .post('/api/v1/admin/travel-content-ingestions')
+      .expect(401);
+
+    const viewerRegistration = await request(
+      app.getHttpServer() as unknown as SupertestApp,
+    )
+      .post('/api/v1/auth/register')
+      .send({
+        email: 'ingestion-viewer@example.com',
+        password: 'strong-password',
+        displayName: 'Ingestion Viewer',
+      })
+      .expect(201);
+    const viewerToken = (viewerRegistration.body as AuthBody).data.accessToken;
+
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .post('/api/v1/admin/travel-content-ingestions')
+      .set('authorization', `Bearer ${viewerToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .post('/api/v1/admin/travel-content-ingestions')
+      .set('authorization', `Bearer ${localAccessToken}`)
+      .expect(202);
+    expect(travelContentIngestions.createRun).toHaveBeenCalledWith(localUserId);
   });
 
   it('should revoke a session on logout and reject it afterward', async () => {

@@ -380,3 +380,76 @@ internal stored generated column named `search_text`:
   Language does not model PostgreSQL generated-column expressions directly.
 - `PrismaService` globally omits these internal fields from result payloads; API response schemas
   remain unchanged.
+
+## 10. Travel content ingestion
+
+Oxylabs-backed travel content ingestion reuses the existing domain models: a destination is a
+`Place`, and a reviewable article is a `Post`. It does not introduce duplicate Destination or
+Article tables.
+
+```prisma
+enum TravelContentIngestionStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum TravelTrendType {
+  TOP
+  RISING
+}
+
+model TravelContentIngestionRun {
+  id                 String                       @id @default(uuid())
+  requestedById      String
+  requestedBy        User                         @relation(fields: [requestedById], references: [id])
+  status             TravelContentIngestionStatus @default(QUEUED)
+  requestParameters  Json
+  trendKeywordCount  Int                          @default(0)
+  discoveredUrlCount Int                          @default(0)
+  importedPostCount  Int                          @default(0)
+  duplicateCount     Int                          @default(0)
+  skippedCount       Int                          @default(0)
+  failedCount        Int                          @default(0)
+  errorSummary       String?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime                     @default(now())
+  posts              Post[]
+  trendKeywords      TravelTrendKeyword[]
+
+  @@index([status, createdAt])
+  @@index([requestedById, createdAt])
+  @@map("travel_content_ingestion_runs")
+}
+
+model TravelTrendKeyword {
+  id             String                    @id @default(uuid())
+  runId          String
+  run            TravelContentIngestionRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  seedKeyword    String
+  keyword        String
+  trendType      TravelTrendType
+  value          Int?
+  formattedValue String?
+  sourceJobId    String?
+  sourceLink     String?
+  createdAt      DateTime                  @default(now())
+
+  @@unique([runId, seedKeyword, trendType, keyword])
+  @@index([keyword, trendType])
+  @@map("travel_trend_keywords")
+}
+```
+
+`Post` has nullable `ingestionRunId`, unique `externalSourceUrl`, `externalSourceName`, and
+`externalPublishedAt` fields for imported-source provenance. Imported Posts are always
+`SYSTEM`/`DRAFT`; only a unique, confident existing Place match populates `placeId`. The complete
+third-party article body is not persisted as Post content: only a bounded excerpt, attribution,
+and canonical source link are retained.
+
+The migration contains a partial unique index allowing only one run with `QUEUED` or `RUNNING`
+status. Prisma schema syntax cannot represent that partial expression, so the reviewed SQL
+migration is authoritative for the active-run constraint.

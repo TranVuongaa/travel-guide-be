@@ -20,6 +20,7 @@ import { PostsModule } from './modules/posts/posts.module';
 import { ProvincesModule } from './modules/provinces/provinces.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { TravelContentIngestionsModule } from './modules/travel-content-ingestions/travel-content-ingestions.module';
 import { UsersModule } from './modules/users/users.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -49,6 +50,15 @@ import { AppService } from './app.service';
           ttl: config.getOrThrow<number>('content.throttleTtlMs'),
           limit: config.getOrThrow<number>('content.throttleLimit'),
         },
+        {
+          name: 'travelIngestion',
+          ttl: config.getOrThrow<number>(
+            'travelContentIngestion.throttleTtlMs',
+          ),
+          limit: config.getOrThrow<number>(
+            'travelContentIngestion.throttleLimit',
+          ),
+        },
       ],
     }),
     ...(process.env.NODE_ENV === 'test'
@@ -75,6 +85,7 @@ import { AppService } from './app.service';
     ReviewsModule,
     CommentsModule,
     ReactionsModule,
+    TravelContentIngestionsModule,
   ],
   controllers: [AppController],
   providers: [
