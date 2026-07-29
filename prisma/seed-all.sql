@@ -1136,7 +1136,7 @@ SET
     "type" = EXCLUDED."type",
     "updatedAt" = CURRENT_TIMESTAMP;
 
--- Direct SQL bypasses the Review queue, so synchronize the denormalized Place
+-- Direct SQL bypasses the Review service, so synchronize the denormalized Place
 -- aggregates for every seeded Place.
 UPDATE "places" AS place
 SET

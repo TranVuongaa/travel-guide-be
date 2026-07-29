@@ -20,13 +20,28 @@ export class TravelContentIngestionRunResponseDto {
   pollAfterMs: number | null;
 
   @ApiProperty()
+  attemptCount: number;
+
+  @ApiProperty()
   trendKeywordCount: number;
 
   @ApiProperty()
   discoveredUrlCount: number;
 
   @ApiProperty()
+  discoveredPlaceCount: number;
+
+  @ApiProperty()
+  importedPlaceCount: number;
+
+  @ApiProperty()
+  updatedPlaceCount: number;
+
+  @ApiProperty()
   importedPostCount: number;
+
+  @ApiProperty()
+  publishedPostCount: number;
 
   @ApiProperty()
   duplicateCount: number;

@@ -34,5 +34,3 @@ process.env.TRAVEL_INGESTION_THROTTLE_LIMIT = '1000';
 process.env.OXY_WSA_USERNAME = 'test-oxylabs-user';
 process.env.OXY_WSA_PASSWORD = 'test-oxylabs-password';
 process.env.OXY_WSA_TIMEOUT_MS = '1000';
-process.env.REDIS_HOST = 'localhost';
-process.env.REDIS_PORT = '6379';

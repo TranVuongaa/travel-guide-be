@@ -48,9 +48,57 @@ export const validationSchema = Joi.object({
     .min(60000)
     .default(300000),
   TRAVEL_INGESTION_THROTTLE_LIMIT: Joi.number().integer().min(1).default(1),
-  REDIS_HOST: Joi.string().hostname().default('localhost'),
-  REDIS_PORT: Joi.number().port().default(6379),
-  REDIS_PASSWORD: Joi.string().min(1).optional(),
+  TRAVEL_INGESTION_MAX_TREND_KEYWORDS: Joi.number()
+    .integer()
+    .min(1)
+    .max(20)
+    .default(10),
+  TRAVEL_INGESTION_MAX_CANDIDATE_URLS: Joi.number()
+    .integer()
+    .min(1)
+    .max(100)
+    .default(40),
+  TRAVEL_INGESTION_MAX_POSTS: Joi.number().integer().min(1).max(50).default(20),
+  TRAVEL_INGESTION_MAX_PLACES: Joi.number()
+    .integer()
+    .min(1)
+    .max(25)
+    .default(10),
+  TRAVEL_INGESTION_MAX_PROVINCE_QUERIES: Joi.number()
+    .integer()
+    .min(1)
+    .max(10)
+    .default(5),
+  TRAVEL_INGESTION_SEARCH_PAGES: Joi.number()
+    .integer()
+    .min(1)
+    .max(3)
+    .default(2),
+  TRAVEL_INGESTION_SEARCH_RESULTS_PER_PAGE: Joi.number()
+    .integer()
+    .min(1)
+    .max(20)
+    .default(10),
+  TRAVEL_INGESTION_POLL_INTERVAL_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .max(60000)
+    .default(3000),
+  TRAVEL_INGESTION_LEASE_DURATION_MS: Joi.number()
+    .integer()
+    .min(60000)
+    .max(900000)
+    .default(300000),
+  TRAVEL_INGESTION_HEARTBEAT_INTERVAL_MS: Joi.number()
+    .integer()
+    .min(5000)
+    .less(Joi.ref('TRAVEL_INGESTION_LEASE_DURATION_MS'))
+    .default(30000),
+  TRAVEL_INGESTION_MAX_ATTEMPTS: Joi.number()
+    .integer()
+    .min(1)
+    .max(10)
+    .default(3),
   ADMIN_EMAIL: Joi.string().email().optional(),
   ADMIN_PASSWORD: Joi.string().min(8).max(128).optional(),
   ADMIN_DISPLAY_NAME: Joi.string().min(1).max(100).optional(),

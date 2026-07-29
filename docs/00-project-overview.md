@@ -44,8 +44,8 @@ A discovery app for travel destinations in Vietnam, including:
 - **Backend**: NestJS (latest), TypeScript strict mode.
 - **ORM**: Prisma (recommended) or TypeORM — final decision documented in `01-architecture.md`.
 - **DB**: PostgreSQL (strong relational needs, transactions, rating aggregates).
-- **Cache/Queue**: Redis (caching, rate-limiting, BullMQ for async jobs — notifications, image
-  processing).
+- **Background work**: PostgreSQL-backed durable runners. The implemented application has no
+  Redis runtime dependency.
 - **Auth**: JWT (access + refresh), Passport strategies.
 - **Validation**: class-validator + class-transformer.
 - **Docs**: Swagger/OpenAPI auto-generated from decorators.

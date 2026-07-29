@@ -384,10 +384,15 @@ describe('Auth and Users API (e2e)', () => {
       status: 'QUEUED',
       trendKeywordCount: 0,
       discoveredUrlCount: 0,
+      discoveredPlaceCount: 0,
+      importedPlaceCount: 0,
+      updatedPlaceCount: 0,
       importedPostCount: 0,
+      publishedPostCount: 0,
       duplicateCount: 0,
       skippedCount: 0,
       failedCount: 0,
+      attemptCount: 0,
       errorSummary: null,
       createdAt: new Date(),
       startedAt: null,
@@ -403,9 +408,14 @@ describe('Auth and Users API (e2e)', () => {
         requestParameters: { seeds: ['travel'] },
         isTerminal: false,
         pollAfterMs: 3000,
+        attemptCount: 1,
         trendKeywordCount: 2,
         discoveredUrlCount: 3,
+        discoveredPlaceCount: 2,
+        importedPlaceCount: 1,
+        updatedPlaceCount: 0,
         importedPostCount: 1,
+        publishedPostCount: 1,
         duplicateCount: 0,
         skippedCount: 0,
         failedCount: 0,
@@ -742,12 +752,18 @@ describe('Auth and Users API (e2e)', () => {
         status: string;
         isTerminal: boolean;
         pollAfterMs: number | null;
+        discoveredPlaceCount: number;
+        importedPlaceCount: number;
+        publishedPostCount: number;
       };
     };
     expect(polledBody.data).toMatchObject({
       status: 'RUNNING',
       isTerminal: false,
       pollAfterMs: 3000,
+      discoveredPlaceCount: 2,
+      importedPlaceCount: 1,
+      publishedPostCount: 1,
     });
 
     await request(app.getHttpServer() as unknown as SupertestApp)

@@ -64,10 +64,37 @@ export default () => ({
       300000,
     ),
     throttleLimit: parseInteger(process.env.TRAVEL_INGESTION_THROTTLE_LIMIT, 1),
-  },
-  redis: {
-    host: process.env.REDIS_HOST,
-    port: parseInteger(process.env.REDIS_PORT, 6379),
-    password: process.env.REDIS_PASSWORD,
+    maxTrendKeywords: parseInteger(
+      process.env.TRAVEL_INGESTION_MAX_TREND_KEYWORDS,
+      10,
+    ),
+    maxCandidateUrls: parseInteger(
+      process.env.TRAVEL_INGESTION_MAX_CANDIDATE_URLS,
+      40,
+    ),
+    maxPosts: parseInteger(process.env.TRAVEL_INGESTION_MAX_POSTS, 20),
+    maxPlaces: parseInteger(process.env.TRAVEL_INGESTION_MAX_PLACES, 10),
+    maxProvinceQueries: parseInteger(
+      process.env.TRAVEL_INGESTION_MAX_PROVINCE_QUERIES,
+      5,
+    ),
+    searchPages: parseInteger(process.env.TRAVEL_INGESTION_SEARCH_PAGES, 2),
+    searchResultsPerPage: parseInteger(
+      process.env.TRAVEL_INGESTION_SEARCH_RESULTS_PER_PAGE,
+      10,
+    ),
+    pollIntervalMs: parseInteger(
+      process.env.TRAVEL_INGESTION_POLL_INTERVAL_MS,
+      3000,
+    ),
+    leaseDurationMs: parseInteger(
+      process.env.TRAVEL_INGESTION_LEASE_DURATION_MS,
+      300000,
+    ),
+    heartbeatIntervalMs: parseInteger(
+      process.env.TRAVEL_INGESTION_HEARTBEAT_INTERVAL_MS,
+      30000,
+    ),
+    maxAttempts: parseInteger(process.env.TRAVEL_INGESTION_MAX_ATTEMPTS, 3),
   },
 });

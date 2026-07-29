@@ -13,11 +13,12 @@ This document tells the agent exactly how to generate a standard NestJS module, 
 | `PlacesModule` | Place CRUD, category/province linkage | `CategoriesModule` |
 | `CategoriesModule` | Category CRUD | — |
 | `PostsModule` | Post CRUD (system/user), content moderation | `PlacesModule`, `MediaModule` |
-| `ReviewsModule` | Review CRUD, updates Place rating (via job) | `PlacesModule` |
+| `ReviewsModule` | Review CRUD, directly maintains Place rating | `PlacesModule` |
 | `CommentsModule` | Nested comments for Post/Review | `PostsModule`, `ReviewsModule` |
 | `ReactionsModule` | Reactions on Post/Review/Comment | any module that can be reacted to |
 | `MediaModule` | Presigned URL, upload confirmation | S3 SDK |
-| `NotificationsModule` | Create & fetch notifications | BullMQ |
+| `TravelContentIngestionsModule` | Durable Oxylabs ingestion runner | PostgreSQL |
+| `NotificationsModule` | Create & fetch notifications (planned) | backend TBD |
 | `ModerationModule` | Abuse reports, report handling | all content modules |
 
 ## 2. Detailed Structure of a Module (example: `PlacesModule`)

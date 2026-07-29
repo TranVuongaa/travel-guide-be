@@ -1,12 +1,9 @@
-import { InjectQueue } from '@nestjs/bullmq';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CommentTargetType, ContentStatus, Prisma, Role } from '@prisma/client';
-import { Queue } from 'bullmq';
 
 import { SortOrder } from '../../common/dto/pagination.dto';
 import {
-  ContentQueueUnavailableException,
   ReviewDuplicateException,
   ReviewNotFoundException,
 } from '../../common/exceptions/content.exceptions';
@@ -27,10 +24,7 @@ import {
   reviewWithRelationsInclude,
   ReviewWithRelations,
 } from './interfaces/review-with-relations.interface';
-import {
-  PLACE_RATING_QUEUE,
-  RECALCULATE_PLACE_RATING_JOB,
-} from './reviews.constants';
+import { PlaceRatingService } from './place-rating.service';
 
 @Injectable()
 export class ReviewsService {
@@ -38,7 +32,7 @@ export class ReviewsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly engagement: ContentEngagementService,
-    @InjectQueue(PLACE_RATING_QUEUE) private readonly ratingQueue: Queue,
+    private readonly rating: PlaceRatingService,
   ) {}
 
   async findAllForPlace(
@@ -131,7 +125,7 @@ export class ReviewsService {
       throw error;
     }
 
-    await this.enqueueRatingUpdate(placeId);
+    await this.rating.recalculate(placeId);
     return this.toResponse(review);
   }
 
@@ -157,7 +151,7 @@ export class ReviewsService {
       },
       include: reviewWithRelationsInclude,
     });
-    await this.enqueueRatingUpdate(review.placeId);
+    await this.rating.recalculate(review.placeId);
     const metrics = await this.engagement.getTargetEngagement(
       CommentTargetType.REVIEW,
       [id],
@@ -176,7 +170,7 @@ export class ReviewsService {
       data: { deletedAt: new Date() },
       include: reviewWithRelationsInclude,
     });
-    await this.enqueueRatingUpdate(review.placeId);
+    await this.rating.recalculate(review.placeId);
     const metrics = await this.engagement.getTargetEngagement(
       CommentTargetType.REVIEW,
       [id],
@@ -245,24 +239,6 @@ export class ReviewsService {
     return role === Role.USER && requireModeration
       ? ContentStatus.PENDING
       : ContentStatus.PUBLISHED;
-  }
-
-  private async enqueueRatingUpdate(placeId: string): Promise<void> {
-    try {
-      await this.ratingQueue.add(
-        RECALCULATE_PLACE_RATING_JOB,
-        { placeId },
-        {
-          jobId: `place-rating-${placeId}`,
-          attempts: 5,
-          backoff: { type: 'exponential', delay: 1000 },
-          removeOnComplete: true,
-          removeOnFail: 100,
-        },
-      );
-    } catch {
-      throw new ContentQueueUnavailableException();
-    }
   }
 
   private toResponse(

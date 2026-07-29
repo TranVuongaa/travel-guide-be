@@ -84,6 +84,11 @@ model Place {
   reviewCount  Int       @default(0)
   status       ContentStatus @default(PUBLISHED)
   createdById  String
+  ingestionRunId     String?
+  ingestionRun       TravelContentIngestionRun? @relation(fields: [ingestionRunId], references: [id], onDelete: SetNull)
+  externalSourceUrl  String?
+  externalSourceName String?
+  externalUpdatedAt  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -93,6 +98,8 @@ model Place {
   images       EntityImage[]
 
   @@index([provinceId])
+  @@index([ingestionRunId])
+  @@index([externalSourceUrl])
   @@map("places")
 }
 
@@ -346,9 +353,8 @@ model Report {
 
 - All `id` fields use UUID (v4), never auto-increment ints, to avoid leaking creation-order
   information.
-- `avgRating`/`reviewCount` on `Place` are denormalized columns, updated via an async job whenever
-  a Review is created/deleted (see `01-architecture.md` section 4.6) — never computed directly in
-  the request that creates a review, to avoid table locking under heavy traffic.
+- `avgRating`/`reviewCount` on `Place` are denormalized columns. Review mutations call a reusable
+  database service that recomputes the published, non-deleted aggregate immediately.
 - Every table has `createdAt`; tables that support editing also have `updatedAt`.
 - Soft delete: consider adding `deletedAt` to `Post`, `Review`, `Comment` instead of hard-deleting
   — decide this explicitly in each module's prompt file at implementation time.
@@ -358,13 +364,13 @@ model Report {
 The existing `search` query parameters for Users, Provinces, Categories, Places, and Posts use an
 internal stored generated column named `search_text`:
 
-| Table        | Source columns included in `search_text`                 |
-| ------------ | -------------------------------------------------------- |
-| `users`      | `email`, `displayName`                                   |
-| `provinces`  | `name`, `slug`                                           |
-| `categories` | `name`, `slug`                                           |
+| Table        | Source columns included in `search_text`                           |
+| ------------ | ------------------------------------------------------------------ |
+| `users`      | `email`, `displayName`                                             |
+| `provinces`  | `name`, `slug`                                                     |
+| `categories` | `name`, `slug`                                                     |
 | `places`     | `name`, `description`, `address`, visible text from HTML `content` |
-| `posts`      | `title`, `description`, visible text from HTML `content` |
+| `posts`      | `title`, `description`, visible text from HTML `content`           |
 
 - Migration `20260728030000_vietnamese_accent_insensitive_search` enables PostgreSQL `unaccent`
   and `pg_trgm`, and defines the schema-qualified immutable `normalize_search_text(text)` helper.
@@ -405,25 +411,34 @@ enum TravelTrendType {
 }
 
 model TravelContentIngestionRun {
-  id                 String                       @id @default(uuid())
-  requestedById      String
-  requestedBy        User                         @relation(fields: [requestedById], references: [id])
-  status             TravelContentIngestionStatus @default(QUEUED)
-  requestParameters  Json
-  trendKeywordCount  Int                          @default(0)
-  discoveredUrlCount Int                          @default(0)
-  importedPostCount  Int                          @default(0)
-  duplicateCount     Int                          @default(0)
-  skippedCount       Int                          @default(0)
-  failedCount        Int                          @default(0)
-  errorSummary       String?
-  startedAt          DateTime?
-  completedAt        DateTime?
-  createdAt          DateTime                     @default(now())
-  posts              Post[]
-  trendKeywords      TravelTrendKeyword[]
+  id                   String                       @id @default(uuid())
+  requestedById        String
+  requestedBy          User                         @relation(fields: [requestedById], references: [id])
+  status               TravelContentIngestionStatus @default(QUEUED)
+  requestParameters    Json
+  trendKeywordCount    Int                          @default(0)
+  discoveredUrlCount   Int                          @default(0)
+  discoveredPlaceCount Int                          @default(0)
+  importedPlaceCount   Int                          @default(0)
+  updatedPlaceCount    Int                          @default(0)
+  importedPostCount    Int                          @default(0)
+  publishedPostCount   Int                          @default(0)
+  duplicateCount       Int                          @default(0)
+  skippedCount         Int                          @default(0)
+  failedCount          Int                          @default(0)
+  attemptCount         Int                          @default(0)
+  errorSummary         String?
+  leaseExpiresAt       DateTime?
+  leaseToken           String?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime                     @default(now())
+  places               Place[]
+  posts                Post[]
+  trendKeywords        TravelTrendKeyword[]
 
   @@index([status, createdAt])
+  @@index([status, leaseExpiresAt, createdAt])
   @@index([requestedById, createdAt])
   @@map("travel_content_ingestion_runs")
 }
@@ -448,10 +463,28 @@ model TravelTrendKeyword {
 ```
 
 `Post` has nullable `ingestionRunId`, unique `externalSourceUrl`, `externalSourceName`, and
-`externalPublishedAt` fields for imported-source provenance. Imported Posts are always
-`SYSTEM`/`DRAFT`; only a unique, confident existing Place match populates `placeId`. The complete
-third-party article body is not persisted as Post content: only a bounded excerpt, attribution,
-and canonical source link are retained.
+`externalPublishedAt` fields for imported-source provenance. An accepted admin-triggered import
+is `SYSTEM`/`PUBLISHED`; it links to a unique, confident existing or newly extracted Place match.
+The complete third-party article body is not mirrored. The importer keeps bounded useful
+sections, visible attribution, and a canonical source link.
+
+`Place` has nullable `ingestionRunId`, `externalSourceUrl`, `externalSourceName`, and
+`externalUpdatedAt` provenance fields. A destination is created only after its Province and at
+least one Category resolve to existing reference rows. Existing Places are matched by normalized
+name within the Province and are enriched conservatively; stronger manually curated fields are
+not overwritten. Accepted Places are `PUBLISHED` and become visible through the existing public
+Place endpoints without a manual publication step.
+
+The ingestion pipeline combines Google Trends with fixed Vietnamese fallback queries, Google
+News results, and evergreen Google Web results scoped to Provinces with the least current Place
+coverage. Effective request/import caps are server-configured and stored in
+`requestParameters`. All Place/Post writes for one accepted source page use an interactive
+transaction.
+
+`travel_content_ingestion_runs` is also the durable work queue. `attemptCount` caps retries;
+`leaseExpiresAt` makes interrupted work reclaimable; and `leaseToken` prevents an expired worker
+from heartbeating or finalizing a run after another worker has claimed it. The runner polls
+PostgreSQL and atomically claims only `QUEUED` rows or expired `RUNNING` rows.
 
 The migration contains a partial unique index allowing only one run with `QUEUED` or `RUNNING`
 status. Prisma schema syntax cannot represent that partial expression, so the reviewed SQL

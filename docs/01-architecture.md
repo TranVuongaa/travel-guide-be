@@ -54,7 +54,7 @@ src/
 │   ├── media/
 │   ├── notifications/
 │   └── moderation/
-└── jobs/                        # BullMQ processors (notification, media processing)
+└── database/                    # Prisma and PostgreSQL-backed durable work
 ```
 
 Each submodule follows the conventions in `05-nestjs-modules.md`.
@@ -104,13 +104,15 @@ otherwise it's `PUBLISHED` immediately (depending on launch phase). Content from
 is always `PUBLISHED` immediately.
 
 ### 4.6 Async Jobs
-Use BullMQ (Redis) for: sending notifications, resizing/optimizing images after upload, and
-recalculating a Place's average rating when a new review comes in (avoids locking the table under
-heavy traffic).
+The implemented travel-content ingestion runner uses `travel_content_ingestion_runs` as a
+durable PostgreSQL work table. Workers claim rows atomically, heartbeat a lease, retry expired
+leases, and cap attempts. Review mutations recalculate the affected Place aggregate directly
+through a reusable database service. Future notification/media workers must use an explicitly
+approved durable backend; Redis is not a current runtime dependency.
 
 ### 4.7 Caching
-Redis cache for: Place lists by province/category (invalidated on Place changes), aggregate
-rating. Use `@nestjs/cache-manager`.
+No application cache is currently configured. PostgreSQL remains authoritative for Place lists
+and rating aggregates.
 
 ### 4.8 Rate Limiting
 `@nestjs/throttler` applied globally, with stricter overrides for sensitive endpoints (login,
@@ -133,4 +135,4 @@ confirmation API to persist metadata. The backend never proxies large file uploa
 ## 7. Observability
 - Logging: `nestjs-pino` or Winston, structured JSON logs, with a `requestId` propagated
   end-to-end (middleware generates the `requestId`, interceptors/logs reuse it).
-- Health check: `@nestjs/terminus` for DB, Redis, disk.
+- Health check: `@nestjs/terminus` for PostgreSQL and disk.

@@ -22,13 +22,3 @@ export class TravelContentIngestionNotFoundException extends DomainException {
     );
   }
 }
-
-export class TravelContentIngestionQueueUnavailableException extends DomainException {
-  constructor() {
-    super(
-      HttpStatus.SERVICE_UNAVAILABLE,
-      ErrorCode.TRAVEL_INGESTION_QUEUE_UNAVAILABLE,
-      'The travel content ingestion queue is unavailable',
-    );
-  }
-}

@@ -66,7 +66,9 @@ export class TravelContentIngestionsController {
   @HttpCode(HttpStatus.ACCEPTED)
   @Roles(Role.ADMIN)
   @Throttle({ travelIngestion: {} })
-  @ApiOperation({ summary: 'Queue a trending travel article ingestion run' })
+  @ApiOperation({
+    summary: 'Start published travel article and destination ingestion',
+  })
   @ApiAcceptedResponse({ type: TravelContentIngestionAcceptedResponseDto })
   @ApiUnauthorizedResponse({ description: 'Authentication is required' })
   @ApiForbiddenResponse({ description: 'Administrator role is required' })

@@ -1,4 +1,3 @@
-import { BullModule } from '@nestjs/bullmq';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -64,20 +63,6 @@ import { AppService } from './app.service';
         },
       ],
     }),
-    ...(process.env.NODE_ENV === 'test'
-      ? []
-      : [
-          BullModule.forRootAsync({
-            inject: [ConfigService],
-            useFactory: (config: ConfigService) => ({
-              connection: {
-                host: config.getOrThrow<string>('redis.host'),
-                port: config.getOrThrow<number>('redis.port'),
-                password: config.get<string>('redis.password'),
-              },
-            }),
-          }),
-        ]),
     PrismaModule,
     UsersModule,
     AuthModule,

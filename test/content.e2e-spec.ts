@@ -1,5 +1,4 @@
 import { INestApplication } from '@nestjs/common';
-import { getQueueToken } from '@nestjs/bullmq';
 import { JwtService } from '@nestjs/jwt';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
@@ -23,14 +22,19 @@ import { PostsService } from '../src/modules/posts/posts.service';
 import { ReactionMutationOutcome } from '../src/modules/reactions/dto/reaction-response.dto';
 import { ReactionsService } from '../src/modules/reactions/reactions.service';
 import { ReviewsService } from '../src/modules/reviews/reviews.service';
-import { PLACE_RATING_QUEUE } from '../src/modules/reviews/reviews.constants';
 
 type SupertestApp = Parameters<typeof request>[0];
 
 interface ListBody {
   success: true;
   data: {
-    items: Array<{ id: string; description: string; content: string }>;
+    items: Array<{
+      id: string;
+      description: string;
+      content: string;
+      source?: PostSource;
+      status?: ContentStatus;
+    }>;
   };
   meta: { requestId: string };
 }
@@ -292,8 +296,6 @@ describe('Content and engagement API (e2e)', () => {
       .useValue(commentsService)
       .overrideProvider(ReactionsService)
       .useValue(reactionsService)
-      .overrideProvider(getQueueToken(PLACE_RATING_QUEUE))
-      .useValue({ add: jest.fn(), close: jest.fn() })
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -381,6 +383,35 @@ describe('Content and engagement API (e2e)', () => {
     expect(postsService.findAll).toHaveBeenCalledWith(
       expect.objectContaining({ placeId: PLACE_ID, search: 'CO DO HUE' }),
     );
+  });
+
+  it('should expose a committed ingestion Post through the public feed', async () => {
+    postsService.findAll.mockResolvedValueOnce({
+      items: [
+        {
+          ...post,
+          source: PostSource.SYSTEM,
+          status: ContentStatus.PUBLISHED,
+        },
+      ],
+      page: 1,
+      limit: 20,
+      totalItems: 1,
+      totalPages: 1,
+    });
+
+    const response = await request(
+      app.getHttpServer() as unknown as SupertestApp,
+    )
+      .get('/api/v1/posts?source=SYSTEM')
+      .expect(200);
+    const body = response.body as unknown as ListBody;
+
+    expect(body.data.items[0]).toMatchObject({
+      id: POST_ID,
+      source: PostSource.SYSTEM,
+      status: ContentStatus.PUBLISHED,
+    });
   });
 
   it('should treat an empty post source as no filter', async () => {

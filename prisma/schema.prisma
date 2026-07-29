@@ -144,31 +144,38 @@ model Category {
 }
 
 model Place {
-  id          String          @id @default(uuid())
-  name        String
-  slug        String          @unique
-  description String
-  content     String
-  address     String?
-  searchText  String          @default(dbgenerated()) @map("search_text")
-  latitude    Float?
-  longitude   Float?
-  provinceId  String
-  province    Province        @relation(fields: [provinceId], references: [id])
-  avgRating   Float           @default(0)
-  reviewCount Int             @default(0)
-  status      ContentStatus   @default(PUBLISHED)
-  createdById String
-  createdBy   User            @relation(fields: [createdById], references: [id])
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  categories  PlaceCategory[]
-  posts       Post[]
-  reviews     Review[]
-  images      EntityImage[]
+  id                 String                     @id @default(uuid())
+  name               String
+  slug               String                     @unique
+  description        String
+  content            String
+  address            String?
+  searchText         String                     @default(dbgenerated()) @map("search_text")
+  latitude           Float?
+  longitude          Float?
+  provinceId         String
+  province           Province                   @relation(fields: [provinceId], references: [id])
+  avgRating          Float                      @default(0)
+  reviewCount        Int                        @default(0)
+  status             ContentStatus              @default(PUBLISHED)
+  createdById        String
+  createdBy          User                       @relation(fields: [createdById], references: [id])
+  ingestionRunId     String?
+  ingestionRun       TravelContentIngestionRun? @relation(fields: [ingestionRunId], references: [id], onDelete: SetNull)
+  externalSourceUrl  String?
+  externalSourceName String?
+  externalUpdatedAt  DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  categories         PlaceCategory[]
+  posts              Post[]
+  reviews            Review[]
+  images             EntityImage[]
 
   @@index([provinceId])
   @@index([status, createdAt, id])
+  @@index([ingestionRunId])
+  @@index([externalSourceUrl])
   @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "places_search_text_trgm_idx")
   @@map("places")
 }
@@ -240,25 +247,34 @@ model Post {
 }
 
 model TravelContentIngestionRun {
-  id                 String                       @id @default(uuid())
-  requestedById      String
-  requestedBy        User                         @relation(fields: [requestedById], references: [id], onDelete: Restrict)
-  status             TravelContentIngestionStatus @default(QUEUED)
-  requestParameters  Json
-  trendKeywordCount  Int                          @default(0)
-  discoveredUrlCount Int                          @default(0)
-  importedPostCount  Int                          @default(0)
-  duplicateCount     Int                          @default(0)
-  skippedCount       Int                          @default(0)
-  failedCount        Int                          @default(0)
-  errorSummary       String?
-  startedAt          DateTime?
-  completedAt        DateTime?
-  createdAt          DateTime                     @default(now())
-  posts              Post[]
-  trendKeywords      TravelTrendKeyword[]
+  id                   String                       @id @default(uuid())
+  requestedById        String
+  requestedBy          User                         @relation(fields: [requestedById], references: [id], onDelete: Restrict)
+  status               TravelContentIngestionStatus @default(QUEUED)
+  requestParameters    Json
+  trendKeywordCount    Int                          @default(0)
+  discoveredUrlCount   Int                          @default(0)
+  discoveredPlaceCount Int                          @default(0)
+  importedPlaceCount   Int                          @default(0)
+  updatedPlaceCount    Int                          @default(0)
+  importedPostCount    Int                          @default(0)
+  publishedPostCount   Int                          @default(0)
+  duplicateCount       Int                          @default(0)
+  skippedCount         Int                          @default(0)
+  failedCount          Int                          @default(0)
+  attemptCount         Int                          @default(0)
+  errorSummary         String?
+  leaseExpiresAt       DateTime?
+  leaseToken           String?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime                     @default(now())
+  places               Place[]
+  posts                Post[]
+  trendKeywords        TravelTrendKeyword[]
 
   @@index([status, createdAt])
+  @@index([status, leaseExpiresAt, createdAt])
   @@index([requestedById, createdAt])
   @@map("travel_content_ingestion_runs")
 }

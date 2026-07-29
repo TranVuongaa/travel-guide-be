@@ -1,16 +1,13 @@
 import { ConfigService } from '@nestjs/config';
 import { ContentStatus, Prisma, Role } from '@prisma/client';
-import { Queue } from 'bullmq';
 
-import {
-  ContentQueueUnavailableException,
-  ReviewDuplicateException,
-} from '../../common/exceptions/content.exceptions';
+import { ReviewDuplicateException } from '../../common/exceptions/content.exceptions';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
 import { ContentEngagementService } from '../../common/services/content-engagement.service';
 import { PrismaService } from '../../database/prisma.service';
 import { QueryMyReviewDto, QueryReviewDto } from './dto/query-review.dto';
 import { ReviewWithRelations } from './interfaces/review-with-relations.interface';
+import { PlaceRatingService } from './place-rating.service';
 import { ReviewsService } from './reviews.service';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -59,7 +56,7 @@ describe('ReviewsService', () => {
     place: { findFirst: jest.Mock };
     $transaction: jest.Mock;
   };
-  let queue: { add: jest.Mock };
+  let rating: { recalculate: jest.Mock };
 
   beforeEach(() => {
     prisma = {
@@ -74,14 +71,14 @@ describe('ReviewsService', () => {
       place: { findFirst: jest.fn() },
       $transaction: jest.fn((items: Promise<unknown>[]) => Promise.all(items)),
     };
-    queue = { add: jest.fn().mockResolvedValue({ id: 'job' }) };
+    rating = { recalculate: jest.fn().mockResolvedValue(undefined) };
     service = new ReviewsService(
       prisma as unknown as PrismaService,
       { get: jest.fn().mockReturnValue(true) } as unknown as ConfigService,
       {
         getTargetEngagement: jest.fn().mockResolvedValue(new Map()),
       } as unknown as ContentEngagementService,
-      queue as unknown as Queue,
+      rating as unknown as PlaceRatingService,
     );
   });
 
@@ -128,7 +125,7 @@ describe('ReviewsService', () => {
     ).rejects.toBeInstanceOf(ReviewDuplicateException);
   });
 
-  it('should create pending review and enqueue rating update', async () => {
+  it('should create pending review and recalculate the place rating', async () => {
     prisma.place.findFirst.mockResolvedValue({ id: PLACE_ID });
     prisma.review.findUnique.mockResolvedValue(null);
     prisma.review.create.mockResolvedValue({
@@ -139,11 +136,7 @@ describe('ReviewsService', () => {
     const result = await service.create(user, PLACE_ID, { rating: 5 });
 
     expect(result.status).toBe(ContentStatus.PENDING);
-    expect(queue.add).toHaveBeenCalledWith(
-      'recalculate-place-rating',
-      { placeId: PLACE_ID },
-      expect.objectContaining({ attempts: 5 }),
-    );
+    expect(rating.recalculate).toHaveBeenCalledWith(PLACE_ID);
   });
 
   it('should map a concurrent review uniqueness race', async () => {
@@ -156,17 +149,17 @@ describe('ReviewsService', () => {
     ).rejects.toBeInstanceOf(ReviewDuplicateException);
   });
 
-  it('should update an author review and enqueue recalculation', async () => {
+  it('should update an author review and recalculate the rating', async () => {
     prisma.review.findFirst.mockResolvedValue(review);
     prisma.review.update.mockResolvedValue({ ...review, rating: 4 });
 
     const result = await service.update(user, REVIEW_ID, { rating: 4 });
 
     expect(result.rating).toBe(4);
-    expect(queue.add).toHaveBeenCalled();
+    expect(rating.recalculate).toHaveBeenCalledWith(PLACE_ID);
   });
 
-  it('should soft-delete an author review and enqueue recalculation', async () => {
+  it('should soft-delete an author review and recalculate the rating', async () => {
     prisma.review.findFirst.mockResolvedValue(review);
     prisma.review.update.mockResolvedValue({
       ...review,
@@ -176,17 +169,17 @@ describe('ReviewsService', () => {
     const result = await service.remove(user, REVIEW_ID);
 
     expect(result.deletedAt).toBeInstanceOf(Date);
-    expect(queue.add).toHaveBeenCalled();
+    expect(rating.recalculate).toHaveBeenCalledWith(PLACE_ID);
   });
 
-  it('should surface queue failure after a review write', async () => {
+  it('should surface rating recalculation failure after a review write', async () => {
     prisma.place.findFirst.mockResolvedValue({ id: PLACE_ID });
     prisma.review.findUnique.mockResolvedValue(null);
     prisma.review.create.mockResolvedValue(review);
-    queue.add.mockRejectedValue(new Error('Redis unavailable'));
+    rating.recalculate.mockRejectedValue(new Error('Database unavailable'));
 
     await expect(
       service.create({ ...user, role: Role.ADMIN }, PLACE_ID, { rating: 5 }),
-    ).rejects.toBeInstanceOf(ContentQueueUnavailableException);
+    ).rejects.toThrow('Database unavailable');
   });
 });

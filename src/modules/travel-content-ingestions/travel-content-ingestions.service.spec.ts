@@ -1,4 +1,5 @@
 import { TravelContentIngestionStatus, TravelTrendType } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 import { SortOrder } from '../../common/dto/pagination.dto';
 import { TravelContentIngestionNotFoundException } from '../../common/exceptions/travel-content-ingestion.exceptions';
@@ -8,6 +9,9 @@ import { TravelContentIngestionsService } from './travel-content-ingestions.serv
 
 const RUN_ID = '11111111-1111-4111-8111-111111111111';
 const ADMIN_ID = '22222222-2222-4222-8222-222222222222';
+const config = {
+  get: jest.fn((_key: string, fallback?: unknown) => fallback),
+} as unknown as ConfigService;
 
 function createRun() {
   return {
@@ -17,11 +21,18 @@ function createRun() {
     requestParameters: {},
     trendKeywordCount: 0,
     discoveredUrlCount: 0,
+    discoveredPlaceCount: 0,
+    importedPlaceCount: 0,
+    updatedPlaceCount: 0,
     importedPostCount: 0,
+    publishedPostCount: 0,
     duplicateCount: 0,
     skippedCount: 0,
     failedCount: 0,
+    attemptCount: 0,
     errorSummary: null,
+    leaseExpiresAt: null,
+    leaseToken: null,
     startedAt: null,
     completedAt: null,
     createdAt: new Date(),
@@ -48,7 +59,7 @@ describe('TravelContentIngestionsService', () => {
     const service = new TravelContentIngestionsService(
       prisma as unknown as PrismaService,
       {} as OxylabsClient,
-      {} as never,
+      config,
     );
 
     await expect(service.findOne(RUN_ID)).resolves.toMatchObject({
@@ -72,7 +83,7 @@ describe('TravelContentIngestionsService', () => {
     const service = new TravelContentIngestionsService(
       prisma as unknown as PrismaService,
       {} as OxylabsClient,
-      {} as never,
+      config,
     );
 
     await expect(service.findOne(RUN_ID)).rejects.toBeInstanceOf(
@@ -94,7 +105,7 @@ describe('TravelContentIngestionsService', () => {
     const service = new TravelContentIngestionsService(
       prisma as unknown as PrismaService,
       {} as OxylabsClient,
-      {} as never,
+      config,
     );
 
     await expect(
@@ -121,7 +132,7 @@ describe('TravelContentIngestionsService', () => {
     });
   });
 
-  it('should persist and enqueue an admin-triggered run', async () => {
+  it('should persist an admin-triggered run in the PostgreSQL queue', async () => {
     const run = createRun();
     const prisma = {
       travelContentIngestionRun: {
@@ -129,42 +140,72 @@ describe('TravelContentIngestionsService', () => {
         create: jest.fn().mockResolvedValue(run),
       },
     };
-    const queue = { add: jest.fn().mockResolvedValue({ id: RUN_ID }) };
     const service = new TravelContentIngestionsService(
       prisma as unknown as PrismaService,
       {} as OxylabsClient,
-      queue as never,
+      config,
     );
 
     await expect(service.createRun(ADMIN_ID)).resolves.toMatchObject({
       id: RUN_ID,
       status: TravelContentIngestionStatus.QUEUED,
     });
-    expect(queue.add).toHaveBeenCalledWith(
-      'run-travel-content-ingestion',
-      { runId: RUN_ID, requestedById: ADMIN_ID },
-      expect.objectContaining({ jobId: RUN_ID }),
-    );
+    const createCalls = prisma.travelContentIngestionRun.create.mock
+      .calls as unknown as Array<[{ data: Record<string, unknown> }]>;
+    expect(createCalls[0]?.[0]).toMatchObject({
+      data: { requestedById: ADMIN_ID },
+    });
   });
 
-  it('should import a valid unique article as a system draft', async () => {
-    const update = jest.fn().mockResolvedValue(createRun());
-    const prisma = {
-      travelContentIngestionRun: {
-        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-        update,
-      },
-      travelTrendKeyword: {
-        createMany: jest.fn().mockResolvedValue({ count: 1 }),
-      },
-      place: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ id: 'place-1', name: 'Ha Long Bay' }]),
-      },
+  it('should import a valid unique article as a published system post', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const postCreate = jest.fn().mockResolvedValue({ id: 'post-1' });
+    const transaction = {
       post: {
         findUnique: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockResolvedValue({ id: 'post-1' }),
+        create: postCreate,
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn(
+        (callback: (value: typeof transaction) => Promise<unknown>) =>
+          callback(transaction),
+      ),
+      travelContentIngestionRun: {
+        updateMany,
+      },
+      travelTrendKeyword: {
+        count: jest.fn().mockResolvedValue(0),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      province: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { id: 'province-1', name: 'Quảng Ninh', places: [] },
+          ]),
+      },
+      category: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      place: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'place-1',
+            name: 'Ha Long Bay',
+            provinceId: 'province-1',
+            description: 'Existing description',
+            content: '<p>Existing content</p>',
+            address: null,
+            latitude: null,
+            longitude: null,
+          },
+        ]),
+      },
+      post: {
+        count: jest.fn().mockResolvedValue(0),
+        findUnique: jest.fn().mockResolvedValue(null),
       },
     };
     const oxylabs = {
@@ -189,72 +230,214 @@ describe('TravelContentIngestionsService', () => {
         },
       ]),
       scrapeArticle: jest.fn().mockResolvedValue({
-        markdown: '# Ha Long Bay travel guide and tourism destination',
+        markdown:
+          '# Ha Long Bay travel guide\n\nHa Long Bay is a famous travel destination in Vietnam with limestone islands, boat routes, viewpoints, local culture, and practical tourism information for visitors planning a complete journey through Quang Ninh province. Travelers can explore caves, join cruises, and learn about responsible ways to visit this destination.',
         finalUrl: 'https://93.184.216.34/article',
       }),
+      searchWeb: jest.fn().mockResolvedValue([]),
     };
     const service = new TravelContentIngestionsService(
       prisma as unknown as PrismaService,
       oxylabs as unknown as OxylabsClient,
-      {} as never,
+      config,
     );
 
     await service.execute(RUN_ID, ADMIN_ID);
 
-    const postCalls = prisma.post.create.mock.calls as unknown as Array<
+    const postCalls = postCreate.mock.calls as unknown as Array<
       [{ data: Record<string, unknown> }]
     >;
     expect(postCalls[0]?.[0].data).toMatchObject({
       authorId: ADMIN_ID,
       placeId: 'place-1',
       externalSourceUrl: 'https://93.184.216.34/article',
-      status: 'DRAFT',
+      status: 'PUBLISHED',
       source: 'SYSTEM',
     });
-    const updateCalls = update.mock.calls as unknown as Array<
-      [{ where: { id: string }; data: Record<string, unknown> }]
+    const updateCalls = updateMany.mock.calls as unknown as Array<
+      [{ where: Record<string, unknown>; data: Record<string, unknown> }]
     >;
     expect(updateCalls.at(-1)?.[0]).toMatchObject({
-      where: { id: RUN_ID },
       data: {
         status: TravelContentIngestionStatus.COMPLETED,
         importedPostCount: 1,
+        publishedPostCount: 1,
       },
     });
   });
 
-  it('should mark a run failed when no trend keywords are usable', async () => {
-    const update = jest.fn().mockResolvedValue(createRun());
-    const prisma = {
-      travelContentIngestionRun: {
-        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-        update,
+  it('should create a published Place and linked Post in one transaction', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const placeCreate = jest.fn().mockResolvedValue({
+      id: 'place-new',
+      name: 'Bà Nà Hills',
+      provinceId: 'province-1',
+      description: 'A useful destination description',
+      content: '<p>Useful destination content</p>',
+      address: null,
+      latitude: null,
+      longitude: null,
+    });
+    const postCreate = jest.fn().mockResolvedValue({ id: 'post-new' });
+    const transaction = {
+      post: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: postCreate,
       },
-      travelTrendKeyword: {
-        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      place: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: placeCreate,
+        update: jest.fn(),
+      },
+      placeCategory: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     };
+    const prisma = {
+      $transaction: jest.fn(
+        (callback: (value: typeof transaction) => Promise<unknown>) =>
+          callback(transaction),
+      ),
+      travelContentIngestionRun: {
+        updateMany,
+      },
+      travelTrendKeyword: {
+        count: jest.fn().mockResolvedValue(0),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      province: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { id: 'province-1', name: 'Đà Nẵng', places: [] },
+          ]),
+      },
+      category: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'category-entertainment',
+            name: 'Vui chơi & giải trí',
+            slug: 'vui-choi-giai-tri',
+          },
+        ]),
+      },
+      place: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      post: {
+        count: jest.fn().mockResolvedValue(0),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+    const longBody =
+      'Bà Nà Hills là khu du lịch vui chơi và giải trí nổi tiếng tại Đà Nẵng với cảnh quan trên núi, nhiều trải nghiệm tham quan, công viên và thông tin hữu ích cho du khách. '.repeat(
+        4,
+      );
     const oxylabs = {
       getTrendKeywords: jest.fn().mockResolvedValue([]),
+      searchNews: jest.fn().mockResolvedValue([]),
+      searchWeb: jest.fn().mockResolvedValue([
+        {
+          title: 'Bà Nà Hills - địa điểm du lịch Đà Nẵng',
+          description: 'Kinh nghiệm du lịch Bà Nà Hills',
+          url: 'https://93.184.216.34/ba-na',
+          sourceName: 'Travel Source',
+          publishedAt: null,
+          query: 'địa điểm du lịch Đà Nẵng',
+          searchType: 'WEB',
+          rank: 1,
+          provinceHint: { id: 'province-1', name: 'Đà Nẵng' },
+        },
+      ]),
+      scrapeArticle: jest.fn().mockResolvedValue({
+        markdown: `# Bà Nà Hills\n\n${longBody}\n\n## 1. Bà Nà Hills\n\n${longBody}`,
+        finalUrl: 'https://93.184.216.34/ba-na',
+      }),
     };
     const service = new TravelContentIngestionsService(
       prisma as unknown as PrismaService,
       oxylabs as unknown as OxylabsClient,
-      {} as never,
+      config,
     );
 
     await service.execute(RUN_ID, ADMIN_ID);
 
-    const updateCalls = update.mock.calls as unknown as Array<
-      [{ where: { id: string }; data: Record<string, unknown> }]
+    const placeCalls = placeCreate.mock.calls as unknown as Array<
+      [{ data: Record<string, unknown> }]
+    >;
+    expect(placeCalls[0]?.[0].data).toMatchObject({
+      name: 'Bà Nà Hills',
+      status: 'PUBLISHED',
+      provinceId: 'province-1',
+      ingestionRunId: RUN_ID,
+    });
+    const postCalls = postCreate.mock.calls as unknown as Array<
+      [{ data: Record<string, unknown> }]
+    >;
+    expect(postCalls[0]?.[0].data).toMatchObject({
+      placeId: 'place-new',
+      status: 'PUBLISHED',
+      source: 'SYSTEM',
+    });
+    const updateCalls = updateMany.mock.calls as unknown as Array<
+      [{ data: Record<string, unknown> }]
+    >;
+    expect(updateCalls.at(-1)?.[0].data).toMatchObject({
+      status: TravelContentIngestionStatus.COMPLETED,
+      importedPlaceCount: 1,
+      publishedPostCount: 1,
+    });
+  });
+
+  it('should use fallback queries when no trend keywords are usable', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const prisma = {
+      travelContentIngestionRun: {
+        updateMany,
+      },
+      travelTrendKeyword: {
+        count: jest.fn().mockResolvedValue(0),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      province: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      category: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      place: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      post: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+    };
+    const oxylabs = {
+      getTrendKeywords: jest.fn().mockResolvedValue([]),
+      searchNews: jest.fn().mockResolvedValue([]),
+    };
+    const service = new TravelContentIngestionsService(
+      prisma as unknown as PrismaService,
+      oxylabs as unknown as OxylabsClient,
+      config,
+    );
+
+    await service.execute(RUN_ID, ADMIN_ID);
+
+    const updateCalls = updateMany.mock.calls as unknown as Array<
+      [{ where: Record<string, unknown>; data: Record<string, unknown> }]
     >;
     expect(updateCalls.at(-1)?.[0]).toMatchObject({
-      where: { id: RUN_ID },
       data: {
         status: TravelContentIngestionStatus.FAILED,
         importedPostCount: 0,
         failedCount: 1,
       },
     });
+    expect(oxylabs.searchNews).toHaveBeenCalledWith(
+      'địa điểm du lịch Việt Nam',
+    );
   });
 });

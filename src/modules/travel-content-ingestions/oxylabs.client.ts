@@ -4,12 +4,17 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import {
+  MAX_SEARCH_PAGES,
+  MIN_ARTICLE_VISIBLE_LENGTH,
+  SEARCH_RESULTS_PER_PAGE,
+} from './travel-content-ingestions.constants';
+import {
   NewsArticleCandidate,
   ScrapedArticle,
   TrendKeywordCandidate,
 } from './interfaces/travel-content.interface';
 import {
-  parseNewsArticles,
+  parseSearchArticles,
   parseStructuredContent,
   parseTrendKeywords,
 } from './travel-content.parsers';
@@ -40,7 +45,7 @@ export class OxylabsClient {
     dateFrom: string,
     dateTo: string,
   ): Promise<TrendKeywordCandidate[]> {
-    const result = await this.request({
+    const results = await this.request({
       source: 'google_trends_explore',
       query: seedKeyword,
       geo_location: 'VN',
@@ -51,50 +56,93 @@ export class OxylabsClient {
         { key: 'category_id', value: 67 },
       ],
     });
-    return parseTrendKeywords(
-      result.content,
-      seedKeyword,
-      result.job_id === undefined ? null : String(result.job_id),
+    return results.flatMap((result) =>
+      parseTrendKeywords(
+        result.content,
+        seedKeyword,
+        result.job_id === undefined ? null : String(result.job_id),
+      ),
     );
   }
 
   async searchNews(keyword: string): Promise<NewsArticleCandidate[]> {
-    const result = await this.request({
+    const results = await this.request({
       source: 'google_search',
       query: `${keyword} travel destination Vietnam`,
       geo_location: 'Vietnam',
       locale: 'vi-VN',
       parse: true,
+      pages: this.config.get<number>(
+        'travelContentIngestion.searchPages',
+        MAX_SEARCH_PAGES,
+      ),
+      limit: this.config.get<number>(
+        'travelContentIngestion.searchResultsPerPage',
+        SEARCH_RESULTS_PER_PAGE,
+      ),
       context: [{ key: 'tbm', value: 'nws' }],
     });
-    return parseNewsArticles(result.content);
+    return results.flatMap((result) =>
+      parseSearchArticles(result.content, {
+        query: keyword,
+        searchType: 'NEWS',
+      }),
+    );
+  }
+
+  async searchWeb(
+    query: string,
+    provinceHint: { id: string; name: string },
+  ): Promise<NewsArticleCandidate[]> {
+    const results = await this.request({
+      source: 'google_search',
+      query,
+      geo_location: 'Vietnam',
+      locale: 'vi-VN',
+      parse: true,
+      pages: this.config.get<number>(
+        'travelContentIngestion.searchPages',
+        MAX_SEARCH_PAGES,
+      ),
+      limit: this.config.get<number>(
+        'travelContentIngestion.searchResultsPerPage',
+        SEARCH_RESULTS_PER_PAGE,
+      ),
+    });
+    return results.flatMap((result) =>
+      parseSearchArticles(result.content, {
+        query,
+        searchType: 'WEB',
+        provinceHint,
+      }),
+    );
   }
 
   async scrapeArticle(url: string): Promise<ScrapedArticle> {
-    const result = await this.request({
+    const firstResults = await this.request({
       source: 'universal',
       url,
       markdown: true,
     });
-    const contentRecord =
-      typeof result.content === 'object' && result.content !== null
-        ? parseStructuredContent(result.content)
-        : null;
-    const markdown =
-      typeof result.content === 'string'
-        ? result.content
-        : typeof contentRecord?.markdown === 'string'
-          ? contentRecord.markdown
-          : '';
-    if (!markdown.trim()) {
+    let scraped = this.toScrapedArticle(firstResults, url);
+    if (scraped.markdown.trim().length < MIN_ARTICLE_VISIBLE_LENGTH) {
+      const renderedResults = await this.request({
+        source: 'universal',
+        url,
+        markdown: true,
+        render: 'html',
+      });
+      scraped = this.toScrapedArticle(renderedResults, url);
+    }
+    if (scraped.markdown.trim().length < MIN_ARTICLE_VISIBLE_LENGTH) {
       throw new Error('Oxylabs returned an empty article page');
     }
-    return { markdown, finalUrl: result.url ?? url };
+    return scraped;
   }
 
   private async request(
     payload: Record<string, unknown>,
-  ): Promise<OxylabsResult> {
+  ): Promise<OxylabsResult[]> {
     const username = this.config.get<string>(
       'travelContentIngestion.oxylabsUsername',
     );
@@ -132,11 +180,13 @@ export class OxylabsClient {
           }
           lastError = new Error(message);
         } else {
-          const result = body.results?.[0];
-          if (!result || (result.status_code ?? 200) >= 400) {
+          const results = (body.results ?? []).filter(
+            (result) => (result.status_code ?? 200) < 400,
+          );
+          if (!results.length) {
             throw new Error('Oxylabs returned no successful result');
           }
-          return result;
+          return results;
         }
       } catch (error) {
         if (error instanceof NonRetryableOxylabsError) throw error;
@@ -150,5 +200,27 @@ export class OxylabsClient {
       }
     }
     throw lastError ?? new Error('Oxylabs request failed');
+  }
+
+  private toScrapedArticle(
+    results: OxylabsResult[],
+    fallbackUrl: string,
+  ): ScrapedArticle {
+    for (const result of results) {
+      const contentRecord =
+        typeof result.content === 'object' && result.content !== null
+          ? parseStructuredContent(result.content)
+          : null;
+      const markdown =
+        typeof result.content === 'string'
+          ? result.content
+          : typeof contentRecord?.markdown === 'string'
+            ? contentRecord.markdown
+            : '';
+      if (markdown.trim()) {
+        return { markdown, finalUrl: result.url ?? fallbackUrl };
+      }
+    }
+    return { markdown: '', finalUrl: fallbackUrl };
   }
 }

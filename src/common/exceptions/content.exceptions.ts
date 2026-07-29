@@ -82,13 +82,3 @@ export class CommentMaxDepthException extends DomainException {
     );
   }
 }
-
-export class ContentQueueUnavailableException extends DomainException {
-  constructor() {
-    super(
-      HttpStatus.SERVICE_UNAVAILABLE,
-      ErrorCode.CONTENT_QUEUE_UNAVAILABLE,
-      'The content aggregate queue is unavailable',
-    );
-  }
-}
