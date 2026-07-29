@@ -23,6 +23,7 @@ interface OxylabsResult {
   content: unknown;
   job_id?: string | number;
   status_code?: number;
+  type?: string;
   url?: string;
 }
 
@@ -32,6 +33,7 @@ interface OxylabsEnvelope {
 }
 
 const REALTIME_ENDPOINT = 'https://realtime.oxylabs.io/v1/queries';
+const RAW_AND_MARKDOWN_ENDPOINT = `${REALTIME_ENDPOINT}?type=raw,markdown`;
 const MAX_ATTEMPTS = 3;
 
 class NonRetryableOxylabsError extends Error {}
@@ -119,22 +121,28 @@ export class OxylabsClient {
   }
 
   async scrapeArticle(url: string): Promise<ScrapedArticle> {
-    const firstResults = await this.request({
-      source: 'universal',
-      url,
-      markdown: true,
-    });
-    let scraped = this.toScrapedArticle(firstResults, url);
-    if (scraped.markdown.trim().length < MIN_ARTICLE_VISIBLE_LENGTH) {
-      const renderedResults = await this.request({
+    const firstResults = await this.request(
+      {
         source: 'universal',
         url,
         markdown: true,
-        render: 'html',
-      });
+      },
+      RAW_AND_MARKDOWN_ENDPOINT,
+    );
+    let scraped = this.toScrapedArticle(firstResults, url);
+    if (!this.hasUsefulArticle(scraped)) {
+      const renderedResults = await this.request(
+        {
+          source: 'universal',
+          url,
+          markdown: true,
+          render: 'html',
+        },
+        RAW_AND_MARKDOWN_ENDPOINT,
+      );
       scraped = this.toScrapedArticle(renderedResults, url);
     }
-    if (scraped.markdown.trim().length < MIN_ARTICLE_VISIBLE_LENGTH) {
+    if (!this.hasMinimumArticleContent(scraped)) {
       throw new Error('Oxylabs returned an empty article page');
     }
     return scraped;
@@ -142,6 +150,7 @@ export class OxylabsClient {
 
   private async request(
     payload: Record<string, unknown>,
+    endpoint = REALTIME_ENDPOINT,
   ): Promise<OxylabsResult[]> {
     const username = this.config.get<string>(
       'travelContentIngestion.oxylabsUsername',
@@ -161,7 +170,7 @@ export class OxylabsClient {
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
-        const response = await fetch(REALTIME_ENDPOINT, {
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             authorization,
@@ -206,21 +215,65 @@ export class OxylabsClient {
     results: OxylabsResult[],
     fallbackUrl: string,
   ): ScrapedArticle {
+    let rawHtml = '';
+    let markdown = '';
+    let finalUrl = fallbackUrl;
     for (const result of results) {
       const contentRecord =
         typeof result.content === 'object' && result.content !== null
           ? parseStructuredContent(result.content)
           : null;
-      const markdown =
+      const content =
         typeof result.content === 'string'
           ? result.content
           : typeof contentRecord?.markdown === 'string'
             ? contentRecord.markdown
             : '';
-      if (markdown.trim()) {
-        return { markdown, finalUrl: result.url ?? fallbackUrl };
+      if (!content.trim()) continue;
+      finalUrl = result.url ?? finalUrl;
+      if (result.type === 'raw') rawHtml = content;
+      else if (result.type === 'markdown') markdown = content;
+      else if (
+        /^\s*(?:<!doctype\s+html|<html|<body|<article|<main)\b/iu.test(content)
+      ) {
+        rawHtml ||= content;
+      } else {
+        markdown ||= content;
       }
     }
-    return { markdown: '', finalUrl: fallbackUrl };
+    return { rawHtml, markdown, finalUrl };
+  }
+
+  private hasUsefulArticle(scraped: ScrapedArticle): boolean {
+    if (scraped.rawHtml.trim()) {
+      const hasArticleContainer =
+        /<(?:article|main)\b|itemprop\s*=\s*["']articleBody["']|class\s*=\s*["'][^"']*(?:article|entry|post|detail)[-_ ]?(?:body|content)/iu.test(
+          scraped.rawHtml,
+        );
+      return (
+        hasArticleContainer &&
+        this.rawVisibleLength(scraped.rawHtml) >= MIN_ARTICLE_VISIBLE_LENGTH
+      );
+    }
+    return scraped.markdown.trim().length >= MIN_ARTICLE_VISIBLE_LENGTH;
+  }
+
+  private hasMinimumArticleContent(scraped: ScrapedArticle): boolean {
+    return (
+      scraped.markdown.trim().length >= MIN_ARTICLE_VISIBLE_LENGTH ||
+      this.rawVisibleLength(scraped.rawHtml) >= MIN_ARTICLE_VISIBLE_LENGTH
+    );
+  }
+
+  private rawVisibleLength(rawHtml: string): number {
+    return rawHtml
+      .replace(
+        /<(?:script|style|noscript)\b[^>]*>[\s\S]*?<\/(?:script|style|noscript)>/giu,
+        ' ',
+      )
+      .replace(/<[^>]+>/gu, ' ')
+      .replace(/&(?:nbsp|#160);/giu, ' ')
+      .replace(/\s+/gu, ' ')
+      .trim().length;
   }
 }

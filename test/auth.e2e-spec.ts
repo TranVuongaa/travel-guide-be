@@ -387,6 +387,7 @@ describe('Auth and Users API (e2e)', () => {
       discoveredPlaceCount: 0,
       importedPlaceCount: 0,
       updatedPlaceCount: 0,
+      updatedPostCount: 0,
       importedPostCount: 0,
       publishedPostCount: 0,
       duplicateCount: 0,
@@ -414,6 +415,7 @@ describe('Auth and Users API (e2e)', () => {
         discoveredPlaceCount: 2,
         importedPlaceCount: 1,
         updatedPlaceCount: 0,
+        updatedPostCount: 1,
         importedPostCount: 1,
         publishedPostCount: 1,
         duplicateCount: 0,
@@ -754,6 +756,7 @@ describe('Auth and Users API (e2e)', () => {
         pollAfterMs: number | null;
         discoveredPlaceCount: number;
         importedPlaceCount: number;
+        updatedPostCount: number;
         publishedPostCount: number;
       };
     };
@@ -763,6 +766,7 @@ describe('Auth and Users API (e2e)', () => {
       pollAfterMs: 3000,
       discoveredPlaceCount: 2,
       importedPlaceCount: 1,
+      updatedPostCount: 1,
       publishedPostCount: 1,
     });
 

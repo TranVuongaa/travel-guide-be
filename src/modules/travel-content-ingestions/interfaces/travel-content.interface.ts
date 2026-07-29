@@ -26,6 +26,7 @@ export interface NewsArticleCandidate {
 }
 
 export interface ScrapedArticle {
+  rawHtml: string;
   markdown: string;
   finalUrl: string;
 }
@@ -34,6 +35,8 @@ export interface ExtractedArticle {
   description: string;
   content: string;
   visibleText: string;
+  blockCount: number;
+  imageCount: number;
 }
 
 export interface ExtractedDestination {
@@ -44,4 +47,6 @@ export interface ExtractedDestination {
   latitude: number | null;
   longitude: number | null;
   matchingText: string;
+  blockCount: number;
+  imageCount: number;
 }

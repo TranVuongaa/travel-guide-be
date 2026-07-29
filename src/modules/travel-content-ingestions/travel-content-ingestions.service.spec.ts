@@ -24,6 +24,7 @@ function createRun() {
     discoveredPlaceCount: 0,
     importedPlaceCount: 0,
     updatedPlaceCount: 0,
+    updatedPostCount: 0,
     importedPostCount: 0,
     publishedPostCount: 0,
     duplicateCount: 0,
@@ -162,8 +163,9 @@ describe('TravelContentIngestionsService', () => {
     const postCreate = jest.fn().mockResolvedValue({ id: 'post-1' });
     const transaction = {
       post: {
-        findUnique: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue(null),
         create: postCreate,
+        update: jest.fn(),
       },
     };
     const prisma = {
@@ -230,6 +232,7 @@ describe('TravelContentIngestionsService', () => {
         },
       ]),
       scrapeArticle: jest.fn().mockResolvedValue({
+        rawHtml: '',
         markdown:
           '# Ha Long Bay travel guide\n\nHa Long Bay is a famous travel destination in Vietnam with limestone islands, boat routes, viewpoints, local culture, and practical tourism information for visitors planning a complete journey through Quang Ninh province. Travelers can explore caves, join cruises, and learn about responsible ways to visit this destination.',
         finalUrl: 'https://93.184.216.34/article',
@@ -266,6 +269,101 @@ describe('TravelContentIngestionsService', () => {
     });
   });
 
+  it('should refresh a materially shorter ingestion-origin system post', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const postUpdate = jest.fn().mockResolvedValue({ id: 'post-existing' });
+    const postCreate = jest.fn();
+    const transaction = {
+      post: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'post-existing',
+          content: '<p>Short imported travel guide.</p>',
+          source: 'SYSTEM',
+          ingestionRunId: 'older-run',
+          placeId: null,
+          deletedAt: null,
+        }),
+        create: postCreate,
+        update: postUpdate,
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn(
+        (callback: (value: typeof transaction) => Promise<unknown>) =>
+          callback(transaction),
+      ),
+      travelContentIngestionRun: { updateMany },
+      travelTrendKeyword: {
+        count: jest.fn().mockResolvedValue(0),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      province: { findMany: jest.fn().mockResolvedValue([]) },
+      category: { findMany: jest.fn().mockResolvedValue([]) },
+      place: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      post: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+    };
+    const longBody =
+      'Vietnam travel destination guide with practical itinerary details, local culture, transport advice, responsible tourism tips, and useful places to visit. '.repeat(
+        12,
+      );
+    const oxylabs = {
+      getTrendKeywords: jest.fn().mockResolvedValue([]),
+      searchNews: jest.fn().mockResolvedValue([
+        {
+          title: 'Vietnam travel destination guide',
+          description: 'A longer practical Vietnam travel guide.',
+          url: 'https://93.184.216.34/existing-guide',
+          sourceName: 'Travel Source',
+          publishedAt: null,
+        },
+      ]),
+      searchWeb: jest.fn().mockResolvedValue([]),
+      scrapeArticle: jest.fn().mockResolvedValue({
+        rawHtml: `<article><h1>Vietnam travel guide</h1><p>${longBody}</p></article>`,
+        markdown: '',
+        finalUrl: 'https://93.184.216.34/existing-guide',
+      }),
+    };
+    const service = new TravelContentIngestionsService(
+      prisma as unknown as PrismaService,
+      oxylabs as unknown as OxylabsClient,
+      config,
+    );
+
+    await service.execute(RUN_ID, ADMIN_ID);
+
+    expect(postCreate).not.toHaveBeenCalled();
+    const postUpdateCalls = postUpdate.mock.calls as unknown as Array<
+      [
+        {
+          where: { id: string };
+          data: { description: string; content: string };
+        },
+      ]
+    >;
+    expect(postUpdateCalls[0]?.[0].where).toEqual({ id: 'post-existing' });
+    expect(postUpdateCalls[0]?.[0].data.description).toBe(
+      'A longer practical Vietnam travel guide.',
+    );
+    expect(postUpdateCalls[0]?.[0].data.content).toContain(
+      '<h2>Vietnam travel guide</h2>',
+    );
+    const updateCalls = updateMany.mock.calls as unknown as Array<
+      [{ data: Record<string, unknown> }]
+    >;
+    expect(updateCalls.at(-1)?.[0].data).toMatchObject({
+      status: TravelContentIngestionStatus.COMPLETED,
+      updatedPostCount: 1,
+      importedPostCount: 0,
+      publishedPostCount: 0,
+    });
+  });
+
   it('should create a published Place and linked Post in one transaction', async () => {
     const updateMany = jest.fn().mockResolvedValue({ count: 1 });
     const placeCreate = jest.fn().mockResolvedValue({
@@ -281,8 +379,9 @@ describe('TravelContentIngestionsService', () => {
     const postCreate = jest.fn().mockResolvedValue({ id: 'post-new' });
     const transaction = {
       post: {
-        findUnique: jest.fn().mockResolvedValue(null),
+        findFirst: jest.fn().mockResolvedValue(null),
         create: postCreate,
+        update: jest.fn(),
       },
       place: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -351,6 +450,7 @@ describe('TravelContentIngestionsService', () => {
         },
       ]),
       scrapeArticle: jest.fn().mockResolvedValue({
+        rawHtml: '',
         markdown: `# Bà Nà Hills\n\n${longBody}\n\n## 1. Bà Nà Hills\n\n${longBody}`,
         finalUrl: 'https://93.184.216.34/ba-na',
       }),

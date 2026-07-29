@@ -26,7 +26,8 @@ describe('sanitizeArticleHtml', () => {
         Read the
         <a href="https://example.com" target="_blank">guide</a>.
       </p>
-      <img src="https://images.example.com/guide.jpg" alt="Guide">
+      <img src="https://images.example.com/guide.jpg" alt="Guide"
+        width="1200" height="800" srcset="https://unsafe.example.com/a.jpg 2x">
       <img src="http://images.example.com/unsafe.jpg" alt="Unsafe">
       <a href="javascript:alert('xss')">unsafe link</a>
     `);
@@ -34,8 +35,9 @@ describe('sanitizeArticleHtml', () => {
     expect(result).toContain('href="https://example.com"');
     expect(result).toContain('rel="noopener noreferrer"');
     expect(result).toContain(
-      '<img src="https://images.example.com/guide.jpg" alt="Guide" loading="lazy" />',
+      '<img src="https://images.example.com/guide.jpg" alt="Guide" width="1200" height="800" loading="lazy" />',
     );
+    expect(result).not.toContain('srcset');
     expect(result).not.toContain('http://images.example.com/unsafe.jpg');
     expect(result).not.toContain('javascript:');
   });

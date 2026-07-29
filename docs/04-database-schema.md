@@ -421,6 +421,7 @@ model TravelContentIngestionRun {
   discoveredPlaceCount Int                          @default(0)
   importedPlaceCount   Int                          @default(0)
   updatedPlaceCount    Int                          @default(0)
+  updatedPostCount     Int                          @default(0)
   importedPostCount    Int                          @default(0)
   publishedPostCount   Int                          @default(0)
   duplicateCount       Int                          @default(0)
@@ -465,8 +466,14 @@ model TravelTrendKeyword {
 `Post` has nullable `ingestionRunId`, unique `externalSourceUrl`, `externalSourceName`, and
 `externalPublishedAt` fields for imported-source provenance. An accepted admin-triggered import
 is `SYSTEM`/`PUBLISHED`; it links to a unique, confident existing or newly extracted Place match.
-The complete third-party article body is not mirrored. The importer keeps bounded useful
-sections, visible attribution, and a canonical source link.
+The complete third-party page is not mirrored. The importer keeps bounded semantic article HTML,
+including safe headings, paragraphs, lists, links, figures, captions, and a limited number of
+validated public HTTPS image URLs. It strips page chrome, executable markup, source styles, ads,
+trackers, and unsafe URLs, then appends visible attribution and a canonical source link.
+
+When a canonical URL is rediscovered, a materially richer body may refresh an ingestion-origin
+`SYSTEM` Post. User-authored, manually created, deleted, and already-richer Posts are not
+overwritten. Successful refreshes increment `updatedPostCount`.
 
 `Place` has nullable `ingestionRunId`, `externalSourceUrl`, `externalSourceName`, and
 `externalUpdatedAt` provenance fields. A destination is created only after its Province and at

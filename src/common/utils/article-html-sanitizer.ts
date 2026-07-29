@@ -27,7 +27,7 @@ const ARTICLE_HTML_OPTIONS: sanitizeHtml.IOptions = {
   ],
   allowedAttributes: {
     a: ['href', 'title', 'target', 'rel'],
-    img: ['src', 'alt', 'title', 'loading'],
+    img: ['src', 'alt', 'title', 'loading', 'width', 'height'],
   },
   allowedSchemesByTag: {
     a: ['http', 'https', 'mailto'],
@@ -55,6 +55,12 @@ const ARTICLE_HTML_OPTIONS: sanitizeHtml.IOptions = {
         ...(attributes.src ? { src: attributes.src } : {}),
         ...(attributes.alt ? { alt: attributes.alt } : {}),
         ...(attributes.title ? { title: attributes.title } : {}),
+        ...(/^\d{1,5}$/u.test(attributes.width ?? '')
+          ? { width: attributes.width }
+          : {}),
+        ...(/^\d{1,5}$/u.test(attributes.height ?? '')
+          ? { height: attributes.height }
+          : {}),
         loading: 'lazy',
       },
     }),
@@ -68,14 +74,19 @@ const PLAIN_TEXT_OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {},
 };
 
+export function articleVisibleText(content: string): string {
+  return sanitizeHtml(content, PLAIN_TEXT_OPTIONS)
+    .replace(/&nbsp;|&#160;/giu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
 export function sanitizeArticleHtml(
   content: string,
   fieldLabel = 'Content',
 ): string {
   const sanitizedContent = sanitizeHtml(content, ARTICLE_HTML_OPTIONS).trim();
-  const visibleText = sanitizeHtml(sanitizedContent, PLAIN_TEXT_OPTIONS)
-    .replace(/&nbsp;|&#160;/giu, ' ')
-    .replace(/\s+/gu, '');
+  const visibleText = articleVisibleText(sanitizedContent).replace(/\s+/gu, '');
 
   if (!visibleText) {
     throw new BadRequestException(

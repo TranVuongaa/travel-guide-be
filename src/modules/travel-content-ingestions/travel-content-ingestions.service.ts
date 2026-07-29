@@ -15,7 +15,10 @@ import {
   TravelContentIngestionNotFoundException,
 } from '../../common/exceptions/travel-content-ingestion.exceptions';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
-import { sanitizeArticleHtml } from '../../common/utils/article-html-sanitizer';
+import {
+  articleVisibleText,
+  sanitizeArticleHtml,
+} from '../../common/utils/article-html-sanitizer';
 import { normalizeSearchText } from '../../common/utils/search-text.util';
 import { toSlug } from '../../common/utils/slug.util';
 import { PrismaService } from '../../database/prisma.service';
@@ -36,14 +39,23 @@ import {
 } from './place-matcher';
 import {
   MAX_CANDIDATE_URLS,
+  MAX_ARTICLE_BLOCKS,
+  MAX_ARTICLE_HTML_LENGTH,
+  MAX_ARTICLE_IMAGES,
+  MAX_ARTICLE_VISIBLE_LENGTH,
   MAX_DESCRIPTION_LENGTH,
   MAX_ERROR_SUMMARY_LENGTH,
+  MAX_PLACE_BLOCKS,
+  MAX_PLACE_CONTENT_LENGTH,
+  MAX_PLACE_IMAGES,
   MAX_PLACES,
   MAX_POSTS,
   MAX_PROVINCE_QUERIES,
   MAX_SEARCH_PAGES,
   MAX_TITLE_LENGTH,
   MAX_TREND_KEYWORDS,
+  MIN_POST_REFRESH_GROWTH_RATIO,
+  MIN_POST_REFRESH_VISIBLE_GROWTH,
   SEARCH_RESULTS_PER_PAGE,
   TRAVEL_FALLBACK_QUERIES,
   TRAVEL_TREND_SEEDS,
@@ -61,6 +73,7 @@ interface RunCounters {
   discoveredPlaceCount: number;
   importedPlaceCount: number;
   updatedPlaceCount: number;
+  updatedPostCount: number;
   importedPostCount: number;
   publishedPostCount: number;
   duplicateCount: number;
@@ -78,7 +91,7 @@ interface PlaceWriteResult extends MatchableIngestionPlace {
 }
 
 interface ArticleWriteResult {
-  duplicate: boolean;
+  postAction: 'CREATED' | 'UPDATED' | 'DUPLICATE';
   places: PlaceWriteResult[];
 }
 
@@ -234,6 +247,7 @@ export class TravelContentIngestionsService {
 
       if (
         counters.publishedPostCount === 0 &&
+        counters.updatedPostCount === 0 &&
         counters.importedPlaceCount === 0 &&
         counters.updatedPlaceCount === 0
       ) {
@@ -245,6 +259,7 @@ export class TravelContentIngestionsService {
 
       const hasPublicItems =
         counters.publishedPostCount > 0 ||
+        counters.updatedPostCount > 0 ||
         counters.importedPlaceCount > 0 ||
         counters.updatedPlaceCount > 0;
       const status =
@@ -360,37 +375,18 @@ export class TravelContentIngestionsService {
     errors: string[],
   ): Promise<void> {
     try {
-      if (
-        await this.prisma.post.findUnique({
-          where: { externalSourceUrl: article.url },
-          select: { id: true },
-        })
-      ) {
-        counters.duplicateCount += 1;
-        return;
-      }
-
       await assertPublicDns(article.url);
       const scraped = await this.oxylabs.scrapeArticle(article.url);
       const finalUrl = canonicalizePublicUrl(scraped.finalUrl);
       await assertPublicDns(finalUrl);
-      if (
-        finalUrl !== article.url &&
-        (await this.prisma.post.findUnique({
-          where: { externalSourceUrl: finalUrl },
-          select: { id: true },
-        }))
-      ) {
-        counters.duplicateCount += 1;
-        return;
-      }
 
       const sourceName = article.sourceName ?? new URL(finalUrl).hostname;
-      const extracted = extractArticle(
-        scraped.markdown,
+      const extracted = await extractArticle(
+        scraped,
         article.description,
         sourceName,
         finalUrl,
+        assertPublicDns,
       );
       if (
         !extracted ||
@@ -408,6 +404,7 @@ export class TravelContentIngestionsService {
             article.provinceHint.name,
             sourceName,
             finalUrl,
+            extracted.content,
           )
         : [];
       counters.discoveredPlaceCount += destinations.length;
@@ -445,12 +442,14 @@ export class TravelContentIngestionsService {
         places,
       );
 
-      if (result.duplicate) {
+      if (result.postAction === 'DUPLICATE') {
         counters.duplicateCount += 1;
-        return;
+      } else if (result.postAction === 'UPDATED') {
+        counters.updatedPostCount += 1;
+      } else {
+        counters.importedPostCount += 1;
+        counters.publishedPostCount += 1;
       }
-      counters.importedPostCount += 1;
-      counters.publishedPostCount += 1;
       for (const place of result.places) {
         if (place.action === 'CREATED') counters.importedPlaceCount += 1;
         if (place.action === 'UPDATED') counters.updatedPlaceCount += 1;
@@ -488,11 +487,21 @@ export class TravelContentIngestionsService {
     places: MatchableIngestionPlace[],
   ): Promise<ArticleWriteResult> {
     return this.prisma.$transaction(async (transaction) => {
-      const duplicate = await transaction.post.findUnique({
-        where: { externalSourceUrl: finalUrl },
-        select: { id: true },
+      const existingPost = await transaction.post.findFirst({
+        where: {
+          externalSourceUrl: {
+            in: [...new Set([article.url, finalUrl])],
+          },
+        },
+        select: {
+          id: true,
+          content: true,
+          source: true,
+          ingestionRunId: true,
+          placeId: true,
+          deletedAt: true,
+        },
       });
-      if (duplicate) return { duplicate: true, places: [] };
 
       const placeResults: PlaceWriteResult[] = [];
       if (provinceHint) {
@@ -514,13 +523,41 @@ export class TravelContentIngestionsService {
       }
 
       const placeId = matchedPlaceId ?? placeResults[0]?.id ?? null;
+      const sanitizedContent = sanitizeArticleHtml(content, 'Post content');
+      if (existingPost) {
+        const oldVisibleLength = articleVisibleText(
+          existingPost.content,
+        ).length;
+        const newVisibleLength = articleVisibleText(sanitizedContent).length;
+        const canRefresh =
+          existingPost.source === PostSource.SYSTEM &&
+          existingPost.ingestionRunId !== null &&
+          existingPost.deletedAt === null &&
+          newVisibleLength >=
+            oldVisibleLength + MIN_POST_REFRESH_VISIBLE_GROWTH &&
+          newVisibleLength >=
+            Math.ceil(oldVisibleLength * MIN_POST_REFRESH_GROWTH_RATIO);
+        if (!canRefresh) {
+          return { postAction: 'DUPLICATE', places: placeResults };
+        }
+        await transaction.post.update({
+          where: { id: existingPost.id },
+          data: {
+            description: description.slice(0, MAX_DESCRIPTION_LENGTH),
+            content: sanitizedContent,
+            placeId: existingPost.placeId ?? placeId ?? undefined,
+          },
+        });
+        return { postAction: 'UPDATED', places: placeResults };
+      }
+
       await transaction.post.create({
         data: {
           authorId: requestedById,
           placeId,
           title: article.title.slice(0, MAX_TITLE_LENGTH),
           description: description.slice(0, MAX_DESCRIPTION_LENGTH),
-          content: sanitizeArticleHtml(content, 'Post content'),
+          content: sanitizedContent,
           source: PostSource.SYSTEM,
           status: ContentStatus.PUBLISHED,
           ingestionRunId: runId,
@@ -529,7 +566,7 @@ export class TravelContentIngestionsService {
           externalPublishedAt: article.publishedAt,
         },
       });
-      return { duplicate: false, places: placeResults };
+      return { postAction: 'CREATED', places: placeResults };
     });
   }
 
@@ -737,6 +774,7 @@ export class TravelContentIngestionsService {
       discoveredPlaceCount: persistedPlaceCount,
       importedPlaceCount: persistedPlaceCount,
       updatedPlaceCount: 0,
+      updatedPostCount: 0,
       importedPostCount: publishedPostCount,
       publishedPostCount,
       duplicateCount: 0,
@@ -760,6 +798,13 @@ export class TravelContentIngestionsService {
       maxPosts: this.maxPosts(),
       maxPlaces: this.maxPlaces(),
       maxProvinceQueries: this.maxProvinceQueries(),
+      articleVisibleCharacterLimit: MAX_ARTICLE_VISIBLE_LENGTH,
+      articleHtmlCharacterLimit: MAX_ARTICLE_HTML_LENGTH,
+      articleBlockLimit: MAX_ARTICLE_BLOCKS,
+      articleImageLimit: MAX_ARTICLE_IMAGES,
+      placeVisibleCharacterLimit: MAX_PLACE_CONTENT_LENGTH,
+      placeBlockLimit: MAX_PLACE_BLOCKS,
+      placeImageLimit: MAX_PLACE_IMAGES,
       searchPages: this.config.get<number>(
         'travelContentIngestion.searchPages',
         MAX_SEARCH_PAGES,
@@ -919,6 +964,7 @@ export class TravelContentIngestionsService {
       discoveredPlaceCount: run.discoveredPlaceCount,
       importedPlaceCount: run.importedPlaceCount,
       updatedPlaceCount: run.updatedPlaceCount,
+      updatedPostCount: run.updatedPostCount,
       importedPostCount: run.importedPostCount,
       publishedPostCount: run.publishedPostCount,
       duplicateCount: run.duplicateCount,

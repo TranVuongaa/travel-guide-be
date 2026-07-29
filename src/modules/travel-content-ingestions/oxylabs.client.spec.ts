@@ -143,10 +143,18 @@ describe('OxylabsClient', () => {
 
   it('should retry an insufficient Markdown page with rendering once', async () => {
     const payloads: Array<Record<string, unknown>> = [];
+    const endpoints: string[] = [];
     global.fetch = (
-      _input: RequestInfo | URL,
+      input: RequestInfo | URL,
       init?: RequestInit,
     ): Promise<Response> => {
+      endpoints.push(
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url,
+      );
       if (typeof init?.body === 'string') {
         payloads.push(JSON.parse(init.body) as Record<string, unknown>);
       }
@@ -160,6 +168,7 @@ describe('OxylabsClient', () => {
             results: [
               {
                 status_code: 200,
+                type: 'markdown',
                 url: 'https://example.com/final',
                 content,
               },
@@ -185,5 +194,53 @@ describe('OxylabsClient', () => {
     });
     expect(payloads).toHaveLength(2);
     expect(payloads[1]).toMatchObject({ render: 'html', markdown: true });
+    expect(endpoints).toEqual([
+      expect.stringContaining('?type=raw,markdown'),
+      expect.stringContaining('?type=raw,markdown'),
+    ]);
+  });
+
+  it('should combine raw and Markdown results without relying on order', async () => {
+    let callCount = 0;
+    global.fetch = (): Promise<Response> => {
+      callCount += 1;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            results: [
+              {
+                status_code: 200,
+                type: 'markdown',
+                url: 'https://example.com/final',
+                content: '# Vietnam travel destination\n\nUseful guide text.',
+              },
+              {
+                status_code: 200,
+                type: 'raw',
+                url: 'https://example.com/final',
+                content: `<article><p>${'Vietnam travel destination guide. '.repeat(
+                  40,
+                )}</p></article>`,
+              },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    };
+    const config = {
+      get: jest.fn((key: string, fallback?: unknown) => {
+        if (key.endsWith('oxylabsUsername')) return 'user';
+        if (key.endsWith('oxylabsPassword')) return 'password';
+        return fallback;
+      }),
+    };
+    const client = new OxylabsClient(config as unknown as ConfigService);
+
+    const scraped = await client.scrapeArticle('https://example.com/article');
+    expect(scraped.rawHtml).toContain('<article>');
+    expect(scraped.markdown).toContain('# Vietnam');
+    expect(scraped.finalUrl).toBe('https://example.com/final');
+    expect(callCount).toBe(1);
   });
 });

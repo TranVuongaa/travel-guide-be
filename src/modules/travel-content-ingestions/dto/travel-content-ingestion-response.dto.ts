@@ -38,6 +38,9 @@ export class TravelContentIngestionRunResponseDto {
   updatedPlaceCount: number;
 
   @ApiProperty()
+  updatedPostCount: number;
+
+  @ApiProperty()
   importedPostCount: number;
 
   @ApiProperty()

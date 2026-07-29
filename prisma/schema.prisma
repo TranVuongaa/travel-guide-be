@@ -257,6 +257,7 @@ model TravelContentIngestionRun {
   discoveredPlaceCount Int                          @default(0)
   importedPlaceCount   Int                          @default(0)
   updatedPlaceCount    Int                          @default(0)
+  updatedPostCount     Int                          @default(0)
   importedPostCount    Int                          @default(0)
   publishedPostCount   Int                          @default(0)
   duplicateCount       Int                          @default(0)
