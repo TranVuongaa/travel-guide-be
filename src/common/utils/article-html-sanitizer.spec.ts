@@ -1,10 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 
-import { sanitizePostContent } from './post-content-sanitizer';
+import { sanitizeArticleHtml } from './article-html-sanitizer';
 
-describe('sanitizePostContent', () => {
+describe('sanitizeArticleHtml', () => {
   it('should preserve article markup and remove executable HTML', () => {
-    const result = sanitizePostContent(`
+    const result = sanitizeArticleHtml(`
       <h2 onclick="alert('xss')">Plan</h2>
       <p style="color:red">Visit <strong>Ha Long Bay</strong>.</p>
       <script>alert('xss')</script>
@@ -21,7 +21,7 @@ describe('sanitizePostContent', () => {
   });
 
   it('should keep safe links and images while removing unsafe URLs', () => {
-    const result = sanitizePostContent(`
+    const result = sanitizeArticleHtml(`
       <p>
         Read the
         <a href="https://example.com" target="_blank">guide</a>.
@@ -42,8 +42,9 @@ describe('sanitizePostContent', () => {
 
   it('should reject content without meaningful visible text', () => {
     expect(() =>
-      sanitizePostContent(
+      sanitizeArticleHtml(
         '<script>alert("xss")</script><img src="https://example.com/a.jpg">',
+        'Destination content',
       ),
     ).toThrow(BadRequestException);
   });

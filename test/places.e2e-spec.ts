@@ -7,6 +7,7 @@ import request from 'supertest';
 
 import { AppModule } from '../src/app.module';
 import { PlaceNotFoundException } from '../src/common/exceptions/place-not-found.exception';
+import { sanitizeArticleHtml } from '../src/common/utils/article-html-sanitizer';
 import { configureApp } from '../src/configure-app';
 import { PrismaService } from '../src/database/prisma.service';
 import { PlaceResponseDto } from '../src/modules/places/dto/place-response.dto';
@@ -34,6 +35,7 @@ interface ListResponseBody {
     items: Array<{
       id: string;
       name: string;
+      content: string;
       images: Array<{ url: string; sortOrder: number }>;
     }>;
     page: number;
@@ -50,6 +52,7 @@ interface ListResponseBody {
 interface DetailResponseBody {
   data: {
     id: string;
+    content: string;
     images: Array<{ url: string; sourcePageUrl: string; sortOrder: number }>;
   };
 }
@@ -79,6 +82,7 @@ const place: PlaceResponseDto = {
   name: 'Ha Long Bay',
   slug: 'ha-long-bay',
   description: 'Limestone islands and emerald water.',
+  content: '<p>Limestone islands and emerald water.</p>',
   address: 'Quang Ninh',
   latitude: 20.9101,
   longitude: 107.1839,
@@ -112,8 +116,8 @@ describe('Places API (e2e)', () => {
   const placesService = {
     findAll: jest.fn(),
     findOneOrFail: jest.fn(),
-    create: jest.fn().mockResolvedValue(place),
-    update: jest.fn().mockResolvedValue(place),
+    create: jest.fn(),
+    update: jest.fn(),
     remove: jest
       .fn()
       .mockResolvedValue({ ...place, status: ContentStatus.HIDDEN }),
@@ -181,19 +185,49 @@ describe('Places API (e2e)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    placesService.findAll.mockImplementation((query: QueryPlaceDto) => ({
-      items: query.search?.toLowerCase().includes('da') ? [place] : [],
-      page: query.page,
-      limit: query.limit,
-      totalItems: 1,
-      totalPages: 1,
-    }));
+    placesService.findAll.mockImplementation((query: QueryPlaceDto) => {
+      const search = query.search?.toLowerCase() ?? '';
+      const items =
+        search.includes('da') || search.includes('emerald') ? [place] : [];
+
+      return {
+        items,
+        page: query.page,
+        limit: query.limit,
+        totalItems: items.length,
+        totalPages: items.length,
+      };
+    });
     placesService.findOneOrFail.mockImplementation((id: string) => {
       if (id === PLACE_ID) {
         return place;
       }
       throw new PlaceNotFoundException(id);
     });
+    placesService.create.mockImplementation(
+      (
+        _userId: string,
+        dto: { name: string; description: string; content: string },
+      ) => ({
+        ...place,
+        name: dto.name,
+        description: dto.description,
+        content: sanitizeArticleHtml(dto.content, 'Destination content'),
+      }),
+    );
+    placesService.update.mockImplementation(
+      (_id: string, dto: { description?: string; content?: string }) => ({
+        ...place,
+        ...(dto.description === undefined
+          ? {}
+          : { description: dto.description }),
+        ...(dto.content === undefined
+          ? {}
+          : {
+              content: sanitizeArticleHtml(dto.content, 'Destination content'),
+            }),
+      }),
+    );
   });
 
   afterAll(async () => {
@@ -207,6 +241,12 @@ describe('Places API (e2e)', () => {
     );
     const collection = document.paths['/api/v1/places'];
     const detail = document.paths['/api/v1/places/{id}'];
+    const createSchema = document.components?.schemas?.CreatePlaceDto as Record<
+      string,
+      unknown
+    >;
+    const responseSchema = document.components?.schemas
+      ?.PlaceResponseDto as Record<string, unknown>;
 
     expect(collection?.get?.security).toBeUndefined();
     expect(detail?.get?.security).toBeUndefined();
@@ -217,6 +257,39 @@ describe('Places API (e2e)', () => {
     expect(detail?.patch?.responses['403']).toBeDefined();
     expect(detail?.delete?.responses['401']).toBeDefined();
     expect(detail?.delete?.responses['403']).toBeDefined();
+    expect(createSchema.required).toEqual(
+      expect.arrayContaining(['description', 'content']),
+    );
+    expect(
+      (createSchema.properties as Record<string, unknown>).content,
+    ).toMatchObject({
+      description: 'Complete destination body as sanitized HTML',
+      maxLength: 100000,
+    });
+    expect(
+      (responseSchema.properties as Record<string, unknown>).content,
+    ).toMatchObject({
+      description: 'Complete sanitized HTML destination body',
+    });
+  });
+
+  it('should pass destination content search text to the Places service', async () => {
+    const response = await request(
+      app.getHttpServer() as unknown as SupertestApp,
+    )
+      .get('/api/v1/places?search=emerald')
+      .expect(200);
+    const body = response.body as unknown as ListResponseBody;
+
+    expect(body.data.items).toEqual([
+      expect.objectContaining({
+        id: PLACE_ID,
+        content: place.content,
+      }),
+    ]);
+    expect(placesService.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ search: 'emerald' }),
+    );
   });
 
   it('should search and paginate published destinations', async () => {
@@ -235,6 +308,7 @@ describe('Places API (e2e)', () => {
         expect.objectContaining({
           id: PLACE_ID,
           name: 'Ha Long Bay',
+          content: place.content,
           images: [expect.objectContaining({ url: image.url, sortOrder: 0 })],
         }),
       ],
@@ -288,6 +362,7 @@ describe('Places API (e2e)', () => {
     const missingBody = missingResponse.body as unknown as ErrorResponseBody;
 
     expect(foundBody.data.id).toBe(PLACE_ID);
+    expect(foundBody.data.content).toBe(place.content);
     expect(foundBody.data.images[0]).toEqual(
       expect.objectContaining({
         url: image.url,
@@ -350,6 +425,7 @@ describe('Places API (e2e)', () => {
     const createDto = {
       name: 'Ha Long Bay',
       description: 'Description',
+      content: '<p>Complete destination guide.</p>',
       provinceId: PROVINCE_ID,
       categoryIds: [CATEGORY_ID],
     };
@@ -396,5 +472,74 @@ describe('Places API (e2e)', () => {
     );
     expect(placesService.update).toHaveBeenCalledTimes(2);
     expect(placesService.remove).toHaveBeenCalledWith(PLACE_ID);
+  });
+
+  it('should validate and sanitize destination HTML on create and update', async () => {
+    const server = app.getHttpServer() as unknown as SupertestApp;
+    const createResponse = await request(server)
+      .post('/api/v1/places')
+      .set('authorization', `Bearer ${editorToken}`)
+      .send({
+        name: 'Ha Long Bay',
+        description: 'A complete destination guide.',
+        content:
+          '<h2 onclick="alert(1)">Overview</h2><p style="color:red">Safe text.</p><script>alert(1)</script>',
+        provinceId: PROVINCE_ID,
+        categoryIds: [CATEGORY_ID],
+      })
+      .expect(201);
+
+    expect((createResponse.body as DetailResponseBody).data.content).toBe(
+      '<h2>Overview</h2><p>Safe text.</p>',
+    );
+
+    const updateResponse = await request(server)
+      .patch(`/api/v1/places/${PLACE_ID}`)
+      .set('authorization', `Bearer ${editorToken}`)
+      .send({
+        content:
+          '<p>Updated guide.</p><img src="http://example.com/unsafe.jpg">',
+      })
+      .expect(200);
+
+    expect((updateResponse.body as DetailResponseBody).data.content).toBe(
+      '<p>Updated guide.</p>',
+    );
+
+    await request(server)
+      .post('/api/v1/places')
+      .set('authorization', `Bearer ${editorToken}`)
+      .send({
+        name: 'Invalid Place',
+        description: 'Invalid destination content.',
+        content:
+          '<script>alert(1)</script><img src="https://example.com/image.jpg">',
+        provinceId: PROVINCE_ID,
+        categoryIds: [CATEGORY_ID],
+      })
+      .expect(400);
+
+    await request(server)
+      .post('/api/v1/places')
+      .set('authorization', `Bearer ${editorToken}`)
+      .send({
+        name: 'Missing Content',
+        description: 'Destination without content.',
+        provinceId: PROVINCE_ID,
+        categoryIds: [CATEGORY_ID],
+      })
+      .expect(400);
+
+    await request(server)
+      .post('/api/v1/places')
+      .set('authorization', `Bearer ${editorToken}`)
+      .send({
+        name: 'HTML Description',
+        description: '<strong>Not plain text</strong>',
+        content: '<p>Valid destination content.</p>',
+        provinceId: PROVINCE_ID,
+        categoryIds: [CATEGORY_ID],
+      })
+      .expect(400);
   });
 });

@@ -18,6 +18,7 @@ import {
   ContentEngagementService,
   TargetEngagement,
 } from '../../common/services/content-engagement.service';
+import { sanitizeArticleHtml } from '../../common/utils/article-html-sanitizer';
 import { normalizeSearchText } from '../../common/utils/search-text.util';
 import { PrismaService } from '../../database/prisma.service';
 import { CreatePostDto, PublicationIntent } from './dto/create-post.dto';
@@ -28,7 +29,6 @@ import {
   postWithRelationsInclude,
   PostWithRelations,
 } from './interfaces/post-with-relations.interface';
-import { sanitizePostContent } from './post-content-sanitizer';
 
 @Injectable()
 export class PostsService {
@@ -108,7 +108,7 @@ export class PostsService {
         placeId: dto.placeId,
         title: dto.title,
         description: dto.description,
-        content: sanitizePostContent(dto.content),
+        content: sanitizeArticleHtml(dto.content, 'Post content'),
         source: this.getSource(user.role),
         status: this.getStatus(user.role, dto.publicationIntent),
       },
@@ -153,7 +153,7 @@ export class PostsService {
         content:
           dto.content === undefined
             ? undefined
-            : sanitizePostContent(dto.content),
+            : sanitizeArticleHtml(dto.content, 'Post content'),
         placeId: dto.placeId,
         status,
       },

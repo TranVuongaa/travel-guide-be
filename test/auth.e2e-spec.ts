@@ -9,6 +9,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 import { PrismaService } from '../src/database/prisma.service';
+import { TravelContentIngestionNotFoundException } from '../src/common/exceptions/travel-content-ingestion.exceptions';
 import { OAuthProvidersService } from '../src/modules/auth/providers/oauth-providers.service';
 import { PlacesService } from '../src/modules/places/places.service';
 import { TravelContentIngestionsService } from '../src/modules/travel-content-ingestions/travel-content-ingestions.service';
@@ -392,6 +393,35 @@ describe('Auth and Users API (e2e)', () => {
       startedAt: null,
       completedAt: null,
     })),
+    findOne: jest.fn().mockImplementation((id: string) => {
+      if (id === '77777777-7777-4777-8777-777777777777') {
+        throw new TravelContentIngestionNotFoundException(id);
+      }
+      return {
+        id,
+        status: 'RUNNING',
+        requestParameters: { seeds: ['travel'] },
+        isTerminal: false,
+        pollAfterMs: 3000,
+        trendKeywordCount: 2,
+        discoveredUrlCount: 3,
+        importedPostCount: 1,
+        duplicateCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        errorSummary: null,
+        createdAt: new Date(),
+        startedAt: new Date(),
+        completedAt: null,
+      };
+    }),
+    findAll: jest.fn().mockResolvedValue({
+      items: [],
+      page: 1,
+      limit: 20,
+      totalItems: 0,
+      totalPages: 0,
+    }),
   };
 
   let localUserId: string;
@@ -643,6 +673,7 @@ describe('Auth and Users API (e2e)', () => {
       .send({
         name: 'Authenticated Place',
         description: 'Created through an authenticated boundary.',
+        content: '<p>Created through an authenticated boundary.</p>',
         provinceId: '44444444-4444-4444-8444-444444444444',
         categoryIds: ['55555555-5555-4555-8555-555555555555'],
       })
@@ -681,6 +712,60 @@ describe('Auth and Users API (e2e)', () => {
       .set('authorization', `Bearer ${localAccessToken}`)
       .expect(202);
     expect(travelContentIngestions.createRun).toHaveBeenCalledWith(localUserId);
+
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .get('/api/v1/admin/travel-content-ingestions')
+      .expect(401);
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .get('/api/v1/admin/travel-content-ingestions')
+      .set('authorization', `Bearer ${viewerToken}`)
+      .expect(403);
+  });
+
+  it('should let administrators poll and list ingestion history', async () => {
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .get('/api/v1/admin/travel-content-ingestions?status=RUNNING')
+      .set('authorization', `Bearer ${localAccessToken}`)
+      .expect(200);
+    expect(travelContentIngestions.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'RUNNING', page: 1, limit: 20 }),
+    );
+
+    const polled = await request(app.getHttpServer() as unknown as SupertestApp)
+      .get(
+        '/api/v1/admin/travel-content-ingestions/66666666-6666-4666-8666-666666666666',
+      )
+      .set('authorization', `Bearer ${localAccessToken}`)
+      .expect(200);
+    const polledBody = polled.body as unknown as {
+      data: {
+        status: string;
+        isTerminal: boolean;
+        pollAfterMs: number | null;
+      };
+    };
+    expect(polledBody.data).toMatchObject({
+      status: 'RUNNING',
+      isTerminal: false,
+      pollAfterMs: 3000,
+    });
+
+    await request(app.getHttpServer() as unknown as SupertestApp)
+      .get('/api/v1/admin/travel-content-ingestions/not-a-uuid')
+      .set('authorization', `Bearer ${localAccessToken}`)
+      .expect(400);
+
+    const missing = await request(
+      app.getHttpServer() as unknown as SupertestApp,
+    )
+      .get(
+        '/api/v1/admin/travel-content-ingestions/77777777-7777-4777-8777-777777777777',
+      )
+      .set('authorization', `Bearer ${localAccessToken}`)
+      .expect(404);
+    expect((missing.body as ErrorBody).error.code).toBe(
+      'TRAVEL_INGESTION_NOT_FOUND',
+    );
   });
 
   it('should revoke a session on logout and reject it afterward', async () => {

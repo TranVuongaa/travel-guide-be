@@ -59,6 +59,12 @@ export class CreatePlaceDto {
   @IsString()
   description: string;
 
+  @ApiProperty({ description: 'Complete destination body as sanitized HTML' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100000)
+  content: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -188,6 +194,7 @@ export class PlacesService {
         name: dto.name,
         slug: slugify(dto.name),
         description: dto.description,
+        content: sanitizeArticleHtml(dto.content, 'Destination content'),
         address: dto.address,
         latitude: dto.latitude,
         longitude: dto.longitude,

@@ -39,6 +39,9 @@ export class PlaceResponseDto {
   @ApiProperty()
   description: string;
 
+  @ApiProperty({ description: 'Complete sanitized HTML destination body' })
+  content: string;
+
   @ApiPropertyOptional({ nullable: true })
   address: string | null;
 

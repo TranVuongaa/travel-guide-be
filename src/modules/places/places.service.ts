@@ -7,6 +7,7 @@ import { PlaceNotFoundException } from '../../common/exceptions/place-not-found.
 import { PlaceSlugConflictException } from '../../common/exceptions/place-slug-conflict.exception';
 import { ProvinceNotFoundException } from '../../common/exceptions/province-not-found.exception';
 import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
+import { sanitizeArticleHtml } from '../../common/utils/article-html-sanitizer';
 import { normalizeSearchText } from '../../common/utils/search-text.util';
 import { toSlug } from '../../common/utils/slug.util';
 import { PrismaService } from '../../database/prisma.service';
@@ -73,6 +74,7 @@ export class PlacesService {
 
   async create(userId: string, dto: CreatePlaceDto): Promise<PlaceResponseDto> {
     this.assertUniqueCategoryIds(dto.categoryIds);
+    const content = sanitizeArticleHtml(dto.content, 'Destination content');
 
     const place = await this.prisma.$transaction(async (transaction) => {
       await this.ensureProvinceExists(transaction, dto.provinceId);
@@ -84,6 +86,7 @@ export class PlacesService {
           name: dto.name,
           slug,
           description: dto.description,
+          content,
           address: dto.address,
           latitude: dto.latitude,
           longitude: dto.longitude,
@@ -108,6 +111,10 @@ export class PlacesService {
     if (dto.categoryIds) {
       this.assertUniqueCategoryIds(dto.categoryIds);
     }
+    const content =
+      dto.content === undefined
+        ? undefined
+        : sanitizeArticleHtml(dto.content, 'Destination content');
 
     const place = await this.prisma.$transaction(async (transaction) => {
       const currentPlace = await this.findEditableOrFail(transaction, id);
@@ -132,6 +139,9 @@ export class PlacesService {
       }
       if (dto.description !== undefined) {
         data.description = dto.description;
+      }
+      if (content !== undefined) {
+        data.content = content;
       }
       if (dto.address !== undefined) {
         data.address = dto.address;
@@ -284,6 +294,7 @@ export class PlacesService {
       name: place.name,
       slug: place.slug,
       description: place.description,
+      content: place.content,
       address: place.address,
       latitude: place.latitude,
       longitude: place.longitude,

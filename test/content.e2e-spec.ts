@@ -15,11 +15,11 @@ import request from 'supertest';
 
 import { AppModule } from '../src/app.module';
 import { ForbiddenDomainException } from '../src/common/exceptions/identity.exceptions';
+import { sanitizeArticleHtml } from '../src/common/utils/article-html-sanitizer';
 import { configureApp } from '../src/configure-app';
 import { PrismaService } from '../src/database/prisma.service';
 import { CommentsService } from '../src/modules/comments/comments.service';
 import { PostsService } from '../src/modules/posts/posts.service';
-import { sanitizePostContent } from '../src/modules/posts/post-content-sanitizer';
 import { ReactionMutationOutcome } from '../src/modules/reactions/dto/reaction-response.dto';
 import { ReactionsService } from '../src/modules/reactions/reactions.service';
 import { ReviewsService } from '../src/modules/reviews/reviews.service';
@@ -166,7 +166,7 @@ describe('Content and engagement API (e2e)', () => {
         ...post,
         title: dto.title,
         description: dto.description,
-        content: sanitizePostContent(dto.content),
+        content: sanitizeArticleHtml(dto.content, 'Post content'),
       }),
     ),
     update: jest.fn(
@@ -184,7 +184,7 @@ describe('Content and engagement API (e2e)', () => {
           content:
             dto.content === undefined
               ? post.content
-              : sanitizePostContent(dto.content),
+              : sanitizeArticleHtml(dto.content, 'Post content'),
         };
       },
     ),

@@ -68,7 +68,10 @@ const PLAIN_TEXT_OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {},
 };
 
-export function sanitizePostContent(content: string): string {
+export function sanitizeArticleHtml(
+  content: string,
+  fieldLabel = 'Content',
+): string {
   const sanitizedContent = sanitizeHtml(content, ARTICLE_HTML_OPTIONS).trim();
   const visibleText = sanitizeHtml(sanitizedContent, PLAIN_TEXT_OPTIONS)
     .replace(/&nbsp;|&#160;/giu, ' ')
@@ -76,7 +79,7 @@ export function sanitizePostContent(content: string): string {
 
   if (!visibleText) {
     throw new BadRequestException(
-      'Post content must contain meaningful visible text',
+      `${fieldLabel} must contain meaningful visible text`,
     );
   }
 

@@ -12,11 +12,13 @@ import { Queue } from 'bullmq';
 
 import {
   TravelContentIngestionActiveException,
+  TravelContentIngestionNotFoundException,
   TravelContentIngestionQueueUnavailableException,
 } from '../../common/exceptions/travel-content-ingestion.exceptions';
+import { PaginatedResult } from '../../common/interfaces/paginated-result.interface';
+import { sanitizeArticleHtml } from '../../common/utils/article-html-sanitizer';
 import { normalizeSearchText } from '../../common/utils/search-text.util';
 import { PrismaService } from '../../database/prisma.service';
-import { sanitizePostContent } from '../posts/post-content-sanitizer';
 import {
   MAX_ARTICLES,
   MAX_DESCRIPTION_LENGTH,
@@ -28,6 +30,7 @@ import {
   TRAVEL_TREND_SEEDS,
 } from './travel-content-ingestions.constants';
 import { TravelContentIngestionRunResponseDto } from './dto/travel-content-ingestion-response.dto';
+import { QueryTravelContentIngestionDto } from './dto/query-travel-content-ingestion.dto';
 import {
   NewsArticleCandidate,
   TravelContentIngestionJob,
@@ -114,6 +117,38 @@ export class TravelContentIngestionsService {
     }
 
     return this.toRunResponse(run);
+  }
+
+  async findOne(id: string): Promise<TravelContentIngestionRunResponseDto> {
+    const run = await this.prisma.travelContentIngestionRun.findUnique({
+      where: { id },
+    });
+    if (!run) throw new TravelContentIngestionNotFoundException(id);
+    return this.toRunResponse(run);
+  }
+
+  async findAll(
+    query: QueryTravelContentIngestionDto,
+  ): Promise<PaginatedResult<TravelContentIngestionRunResponseDto>> {
+    const where: Prisma.TravelContentIngestionRunWhereInput = query.status
+      ? { status: query.status }
+      : {};
+    const [runs, totalItems] = await this.prisma.$transaction([
+      this.prisma.travelContentIngestionRun.findMany({
+        where,
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+        orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      }),
+      this.prisma.travelContentIngestionRun.count({ where }),
+    ]);
+    return {
+      items: runs.map((run) => this.toRunResponse(run)),
+      page: query.page,
+      limit: query.limit,
+      totalItems,
+      totalPages: Math.ceil(totalItems / query.limit),
+    };
   }
 
   async execute(runId: string, requestedById: string): Promise<void> {
@@ -262,12 +297,13 @@ export class TravelContentIngestionsService {
         places,
       );
       const sourceName = article.sourceName ?? new URL(finalUrl).hostname;
-      const content = sanitizePostContent(
+      const content = sanitizeArticleHtml(
         `<p>${this.escapeHtml(description)}</p><p>Source: ${this.escapeHtml(
           sourceName,
         )}. <a href="${this.escapeHtml(
           finalUrl,
         )}" target="_blank">Read the original article</a>.</p>`,
+        'Post content',
       );
 
       await this.prisma.post.create({
@@ -385,9 +421,20 @@ export class TravelContentIngestionsService {
   private toRunResponse(
     run: TravelContentIngestionRun,
   ): TravelContentIngestionRunResponseDto {
+    const terminalStatuses: ReadonlySet<TravelContentIngestionStatus> = new Set(
+      [
+        TravelContentIngestionStatus.COMPLETED,
+        TravelContentIngestionStatus.PARTIAL,
+        TravelContentIngestionStatus.FAILED,
+      ],
+    );
+    const isTerminal = terminalStatuses.has(run.status);
     return {
       id: run.id,
       status: run.status,
+      requestParameters: this.toJsonObject(run.requestParameters),
+      isTerminal,
+      pollAfterMs: isTerminal ? null : 3000,
       trendKeywordCount: run.trendKeywordCount,
       discoveredUrlCount: run.discoveredUrlCount,
       importedPostCount: run.importedPostCount,
@@ -399,5 +446,11 @@ export class TravelContentIngestionsService {
       startedAt: run.startedAt,
       completedAt: run.completedAt,
     };
+  }
+
+  private toJsonObject(value: Prisma.JsonValue): Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? value
+      : {};
   }
 }

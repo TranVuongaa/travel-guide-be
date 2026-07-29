@@ -22,6 +22,7 @@ const place: PlaceWithRelations = {
   name: 'Ha Long Bay',
   slug: 'ha-long-bay',
   description: 'Limestone islands and emerald water.',
+  content: '<p>Limestone islands and emerald water.</p>',
   address: 'Quang Ninh',
   latitude: 20.9101,
   longitude: 107.1839,
@@ -239,6 +240,8 @@ describe('PlacesService', () => {
     const dto: CreatePlaceDto = {
       name: 'Ha Long Bay',
       description: place.description,
+      content:
+        '<p>Explore <strong>Ha Long Bay</strong>.</p><script>alert("xss")</script>',
       address: place.address ?? undefined,
       latitude: place.latitude ?? undefined,
       longitude: place.longitude ?? undefined,
@@ -255,6 +258,7 @@ describe('PlacesService', () => {
     expect(createArgs.data).toEqual(
       expect.objectContaining({
         slug: 'ha-long-bay-2',
+        content: '<p>Explore <strong>Ha Long Bay</strong>.</p>',
         createdBy: { connect: { id: USER_ID } },
         province: { connect: { id: PROVINCE_ID } },
         categories: { create: [{ categoryId: CATEGORY_ID }] },
@@ -269,6 +273,7 @@ describe('PlacesService', () => {
       service.create(USER_ID, {
         name: place.name,
         description: place.description,
+        content: place.content,
         provinceId: PROVINCE_ID,
         categoryIds: [CATEGORY_ID],
       }),
@@ -284,6 +289,7 @@ describe('PlacesService', () => {
       service.create(USER_ID, {
         name: place.name,
         description: place.description,
+        content: place.content,
         provinceId: PROVINCE_ID,
         categoryIds: [CATEGORY_ID, SECOND_CATEGORY_ID],
       }),
@@ -295,6 +301,7 @@ describe('PlacesService', () => {
       service.create(USER_ID, {
         name: place.name,
         description: place.description,
+        content: place.content,
         provinceId: PROVINCE_ID,
         categoryIds: [CATEGORY_ID, CATEGORY_ID],
       }),
@@ -325,6 +332,7 @@ describe('PlacesService', () => {
 
     const result = await service.update(PLACE_ID, {
       name: 'Ha Long Islands',
+      content: '<h2>Updated guide</h2><p style="color:red">Plan a cruise.</p>',
       categoryIds: [SECOND_CATEGORY_ID],
     });
 
@@ -338,6 +346,7 @@ describe('PlacesService', () => {
       expect.objectContaining({
         name: 'Ha Long Islands',
         slug: 'ha-long-islands',
+        content: '<h2>Updated guide</h2><p>Plan a cruise.</p>',
         categories: {
           deleteMany: {},
           create: [{ categoryId: SECOND_CATEGORY_ID }],
@@ -352,6 +361,19 @@ describe('PlacesService', () => {
     await expect(
       service.update(PLACE_ID, { name: 'New name' }),
     ).rejects.toBeInstanceOf(PlaceNotFoundException);
+    expect(prisma.place.update).not.toHaveBeenCalled();
+  });
+
+  it('should reject destination content without meaningful visible text', async () => {
+    await expect(
+      service.update(PLACE_ID, {
+        content:
+          '<script>alert("xss")</script><img src="https://example.com/a.jpg">',
+      }),
+    ).rejects.toThrow(
+      'Destination content must contain meaningful visible text',
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(prisma.place.update).not.toHaveBeenCalled();
   });
 

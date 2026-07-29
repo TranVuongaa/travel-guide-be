@@ -10,6 +10,15 @@ export class TravelContentIngestionRunResponseDto {
   @ApiProperty({ enum: TravelContentIngestionStatus })
   status: TravelContentIngestionStatus;
 
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  requestParameters: Record<string, unknown>;
+
+  @ApiProperty()
+  isTerminal: boolean;
+
+  @ApiPropertyOptional({ nullable: true, example: 3000 })
+  pollAfterMs: number | null;
+
   @ApiProperty()
   trendKeywordCount: number;
 
@@ -39,6 +48,45 @@ export class TravelContentIngestionRunResponseDto {
 
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   completedAt: Date | null;
+}
+
+export class PaginatedTravelContentIngestionRunsDto {
+  @ApiProperty({ type: [TravelContentIngestionRunResponseDto] })
+  items: TravelContentIngestionRunResponseDto[];
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  limit: number;
+
+  @ApiProperty()
+  totalItems: number;
+
+  @ApiProperty()
+  totalPages: number;
+}
+
+export class TravelContentIngestionSuccessResponseDto {
+  @ApiProperty({ example: true })
+  success: true;
+
+  @ApiProperty({ type: TravelContentIngestionRunResponseDto })
+  data: TravelContentIngestionRunResponseDto;
+
+  @ApiProperty({ type: ResponseMetaDto })
+  meta: ResponseMetaDto;
+}
+
+export class PaginatedTravelContentIngestionsSuccessResponseDto {
+  @ApiProperty({ example: true })
+  success: true;
+
+  @ApiProperty({ type: PaginatedTravelContentIngestionRunsDto })
+  data: PaginatedTravelContentIngestionRunsDto;
+
+  @ApiProperty({ type: ResponseMetaDto })
+  meta: ResponseMetaDto;
 }
 
 export class TravelContentIngestionAcceptedResponseDto {

@@ -1,5 +1,7 @@
 import { TravelContentIngestionStatus, TravelTrendType } from '@prisma/client';
 
+import { SortOrder } from '../../common/dto/pagination.dto';
+import { TravelContentIngestionNotFoundException } from '../../common/exceptions/travel-content-ingestion.exceptions';
 import { PrismaService } from '../../database/prisma.service';
 import { OxylabsClient } from './oxylabs.client';
 import { TravelContentIngestionsService } from './travel-content-ingestions.service';
@@ -27,6 +29,98 @@ function createRun() {
 }
 
 describe('TravelContentIngestionsService', () => {
+  it('should return polling metadata for active and terminal runs', async () => {
+    const prisma = {
+      travelContentIngestionRun: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({
+            ...createRun(),
+            status: TravelContentIngestionStatus.RUNNING,
+          })
+          .mockResolvedValueOnce({
+            ...createRun(),
+            status: TravelContentIngestionStatus.COMPLETED,
+            completedAt: new Date(),
+          }),
+      },
+    };
+    const service = new TravelContentIngestionsService(
+      prisma as unknown as PrismaService,
+      {} as OxylabsClient,
+      {} as never,
+    );
+
+    await expect(service.findOne(RUN_ID)).resolves.toMatchObject({
+      status: TravelContentIngestionStatus.RUNNING,
+      isTerminal: false,
+      pollAfterMs: 3000,
+    });
+    await expect(service.findOne(RUN_ID)).resolves.toMatchObject({
+      status: TravelContentIngestionStatus.COMPLETED,
+      isTerminal: true,
+      pollAfterMs: null,
+    });
+  });
+
+  it('should throw the domain not-found error for a missing run', async () => {
+    const prisma = {
+      travelContentIngestionRun: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+    const service = new TravelContentIngestionsService(
+      prisma as unknown as PrismaService,
+      {} as OxylabsClient,
+      {} as never,
+    );
+
+    await expect(service.findOne(RUN_ID)).rejects.toBeInstanceOf(
+      TravelContentIngestionNotFoundException,
+    );
+  });
+
+  it('should list filtered run history with deterministic pagination', async () => {
+    const run = createRun();
+    const prisma = {
+      $transaction: jest.fn(async (operations: Promise<unknown>[]) =>
+        Promise.all(operations),
+      ),
+      travelContentIngestionRun: {
+        findMany: jest.fn().mockResolvedValue([run]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+    };
+    const service = new TravelContentIngestionsService(
+      prisma as unknown as PrismaService,
+      {} as OxylabsClient,
+      {} as never,
+    );
+
+    await expect(
+      service.findAll({
+        page: 2,
+        limit: 10,
+        sortOrder: SortOrder.ASC,
+        status: TravelContentIngestionStatus.QUEUED,
+      }),
+    ).resolves.toMatchObject({
+      page: 2,
+      limit: 10,
+      totalItems: 1,
+      totalPages: 1,
+    });
+    expect(prisma.travelContentIngestionRun.findMany).toHaveBeenCalledWith({
+      where: { status: TravelContentIngestionStatus.QUEUED },
+      skip: 10,
+      take: 10,
+      orderBy: [{ createdAt: SortOrder.ASC }, { id: SortOrder.ASC }],
+    });
+    expect(prisma.travelContentIngestionRun.count).toHaveBeenCalledWith({
+      where: { status: TravelContentIngestionStatus.QUEUED },
+    });
+  });
+
   it('should persist and enqueue an admin-triggered run', async () => {
     const run = createRun();
     const prisma = {

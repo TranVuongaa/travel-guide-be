@@ -13,6 +13,16 @@ export class TravelContentIngestionActiveException extends DomainException {
   }
 }
 
+export class TravelContentIngestionNotFoundException extends DomainException {
+  constructor(id: string) {
+    super(
+      HttpStatus.NOT_FOUND,
+      ErrorCode.TRAVEL_INGESTION_NOT_FOUND,
+      `Travel content ingestion run ${id} not found`,
+    );
+  }
+}
+
 export class TravelContentIngestionQueueUnavailableException extends DomainException {
   constructor() {
     super(

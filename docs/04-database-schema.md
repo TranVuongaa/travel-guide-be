@@ -73,7 +73,8 @@ model Place {
   id           String    @id @default(uuid())
   name         String
   slug         String    @unique
-  description  String
+  description  String    // Plain-text summary
+  content      String    // Sanitized HTML destination body
   address      String?
   latitude     Float?
   longitude    Float?
@@ -362,13 +363,15 @@ internal stored generated column named `search_text`:
 | `users`      | `email`, `displayName`                                   |
 | `provinces`  | `name`, `slug`                                           |
 | `categories` | `name`, `slug`                                           |
-| `places`     | `name`, `description`, `address`                         |
+| `places`     | `name`, `description`, `address`, visible text from HTML `content` |
 | `posts`      | `title`, `description`, visible text from HTML `content` |
 
 - Migration `20260728030000_vietnamese_accent_insensitive_search` enables PostgreSQL `unaccent`
   and `pg_trgm`, and defines the schema-qualified immutable `normalize_search_text(text)` helper.
   Migration `20260728040000_post_description_html_content` extends the Post source expression
-  with `description` and strips HTML tags from `content` before normalization.
+  with `description` and strips HTML tags from `content` before normalization. Migration
+  `20260729020000_place_html_content` applies the same visible-HTML-text behavior to Place
+  `content`.
 - Normalization lowercases text, removes Vietnamese accents, maps `đ`/`Đ` to `d`/`D`, converts
   punctuation/separators to single spaces, and trims the result.
 - Each `search_text` column is `GENERATED ALWAYS ... STORED`, so existing rows are backfilled by

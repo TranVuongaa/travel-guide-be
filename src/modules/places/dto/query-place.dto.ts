@@ -20,7 +20,7 @@ export enum PlaceSortBy {
 export class QueryPlaceDto extends PaginationDto {
   @ApiPropertyOptional({
     description:
-      'Case-insensitive and Vietnamese-accent-insensitive name, description, or address search',
+      'Case-insensitive and Vietnamese-accent-insensitive name, description, address, or visible destination content search',
     example: 'da nang',
     maxLength: 200,
   })

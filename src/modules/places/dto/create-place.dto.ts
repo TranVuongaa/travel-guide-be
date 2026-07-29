@@ -1,18 +1,24 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   ArrayUnique,
   IsArray,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
   ValidateIf,
 } from 'class-validator';
+
+function trim(value: unknown): unknown {
+  return typeof value === 'string' ? value.trim() : value;
+}
 
 export class CreatePlaceDto {
   @ApiProperty({ example: 'Ha Long Bay', maxLength: 200 })
@@ -20,10 +26,31 @@ export class CreatePlaceDto {
   @MaxLength(200)
   name: string;
 
-  @ApiProperty({ example: 'A UNESCO World Heritage destination.' })
+  @ApiProperty({
+    description: 'Short plain-text destination summary',
+    example: 'A UNESCO World Heritage destination.',
+    maxLength: 10000,
+  })
+  @Transform(({ value }: { value: unknown }) => trim(value))
   @IsString()
+  @IsNotEmpty()
+  @Matches(/^[^<>]*$/u, {
+    message: 'description must be plain text without HTML tags',
+  })
   @MaxLength(10000)
   description: string;
+
+  @ApiProperty({
+    description: 'Complete destination body as sanitized HTML',
+    example:
+      '<h2>Overview</h2><p>Explore limestone islands and emerald water.</p>',
+    maxLength: 100000,
+  })
+  @Transform(({ value }: { value: unknown }) => trim(value))
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100000)
+  content: string;
 
   @ApiPropertyOptional({ example: 'Quang Ninh, Vietnam', maxLength: 500 })
   @IsOptional()

@@ -210,6 +210,7 @@ INSERT INTO "places" (
     "name",
     "slug",
     "description",
+    "content",
     "address",
     "latitude",
     "longitude",
@@ -226,6 +227,7 @@ SELECT
     fixture."name",
     fixture."slug",
     fixture."description",
+    '<p>' || fixture."description" || '</p>',
     fixture."address",
     fixture."latitude",
     fixture."longitude",
@@ -323,6 +325,7 @@ ON CONFLICT ("slug") DO UPDATE
 SET
     "name" = EXCLUDED."name",
     "description" = EXCLUDED."description",
+    "content" = EXCLUDED."content",
     "address" = EXCLUDED."address",
     "latitude" = EXCLUDED."latitude",
     "longitude" = EXCLUDED."longitude",

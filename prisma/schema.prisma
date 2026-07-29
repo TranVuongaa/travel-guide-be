@@ -148,6 +148,7 @@ model Place {
   name        String
   slug        String          @unique
   description String
+  content     String
   address     String?
   searchText  String          @default(dbgenerated()) @map("search_text")
   latitude    Float?
